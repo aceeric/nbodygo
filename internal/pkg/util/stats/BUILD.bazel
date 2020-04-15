@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "stats.go",
+        "table.go",
+    ],
+    importpath = "nbodygo/internal/pkg/util/stats",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/pkg/gls:go_default_library",
+        "//internal/pkg/gui:go_default_library",
+    ],
+)

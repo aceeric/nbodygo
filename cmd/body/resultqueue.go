@@ -1,0 +1,74 @@
+package body
+
+import (
+	"container/list"
+	"sync"
+)
+
+type ResultQueueHolder struct {
+	maxQueues int
+	queueNum  uint
+	queues *list.List // queue of ResultQueue
+	m sync.Mutex
+}
+type ResultQueue struct {
+	computed bool
+	queNum uint
+	queue []BodyRenderInfo // TODO RENAME - ITS NOT A QUEUE IS IT? JUST USED AS AN ARRAY
+}
+
+func NewResultQueue(queNum uint, capacity int) *ResultQueue  {
+	return &ResultQueue{
+		computed: false,
+		queNum:   queNum,
+		queue:    make([]BodyRenderInfo, 0),
+	}
+}
+
+func (rq *ResultQueue) addRenderInfo(info BodyRenderInfo) {
+	rq.queue = append(rq.queue, info) // TODO HOW TO DO THIS MORE GO-LIKE?
+}
+
+func NewResultQueueHolder(maxQueues int) ResultQueueHolder {
+	return ResultQueueHolder {
+		maxQueues: maxQueues,
+		queues: list.New(),
+		m: sync.Mutex{},
+	}
+}
+
+// return second arg false if full and can't add
+func (rqh *ResultQueueHolder) newQueue(capacity int) (*ResultQueue, bool) {
+	rqh.m.Lock()
+	defer rqh.m.Unlock()
+	if rqh.isFull() {
+		return &ResultQueue{}, false
+	}
+	rq := NewResultQueue(rqh.nextQueueNum(), capacity)
+	rqh.queues.PushFront(rq)
+	return rq, true
+}
+
+// caller must synchronize
+func (rqh *ResultQueueHolder) isFull() bool {
+	return rqh.queues.Len() >= rqh.maxQueues
+}
+
+// return second arg false if no computed queues
+func (rqh *ResultQueueHolder) nextComputedQueue() (*ResultQueue, bool) {
+	rqh.m.Lock()
+	defer rqh.m.Unlock()
+	rq := rqh.queues.Back()
+	if rq != nil && rq.Value.(*ResultQueue).computed {
+		rqh.queues.Remove(rq)
+		return rq.Value.(*ResultQueue), true
+	}
+	return &ResultQueue{}, false
+}
+
+// generate wrapping 1-up number (supports test/debug)
+func (rqh *ResultQueueHolder) nextQueueNum() (queueNum uint) {
+	queueNum = rqh.queueNum
+	rqh.queueNum++
+	return
+}

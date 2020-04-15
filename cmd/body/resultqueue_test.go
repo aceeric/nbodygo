@@ -1,0 +1,145 @@
+package body
+
+import (
+	"math/rand"
+	"nbodygo/cmd/globals"
+	"testing"
+	"time"
+)
+
+// Tests setting a queue as computed, and getting computed queue
+func TestComputed(t *testing.T) {
+	rqh := NewResultQueueHolder(1)
+	rq, ok := rqh.newQueue(5)
+	if ok {
+		rq.computed = true
+	} else {
+		t.Error("Failed to create new Queue")
+	}
+	rq, ok = rqh.nextComputedQueue()
+	if ok {
+		println(rq.queue)
+	} else {
+		t.Error("Expected a computed queue")
+	}
+}
+
+// tests getting computed queue when there are no computed queues
+func TestNoComputed(t *testing.T) {
+	rqh := NewResultQueueHolder(1)
+	_, ok := rqh.newQueue(5)
+	if !ok {
+		t.Error("Failed to create new Queue")
+	}
+	// don't set computed
+	_, ok = rqh.nextComputedQueue()
+	if ok {
+		t.Error("Did not expect a computed queue")
+	}
+}
+
+// tests adding a queue when there is no capacity to add a queue
+func TestNoCapacity(t *testing.T) {
+	rqh := NewResultQueueHolder(1)
+	_, ok := rqh.newQueue(5)
+	if !ok {
+		t.Error("Failed to create new Queue")
+	}
+	_, ok = rqh.newQueue(5)
+	if ok {
+		t.Error("Should not have been able to create queue")
+	}
+}
+
+// tests queues added and returned in order
+func TestOrder(t *testing.T) {
+	rqh := NewResultQueueHolder(3)
+	// create three queues, setting all to computed
+	for i := 0; i < 3; i++ {
+		rq, _ := rqh.newQueue(1)
+		rq.computed = true
+	}
+	for i := 0; i < 3; i++ {
+		rq, _ := rqh.nextComputedQueue()
+		if rq.queNum != uint(i) {
+			t.Error("Got queue in unexpected order")
+		}
+	}
+}
+
+// tests synchronized access to result queue holder. Runs three goroutines concurrently. Queue creater
+// goroutine (#1) creates new queues - exceeding the holder's capacity. When it exceeds capacity it sleeps.
+// When it successfully creates a queue it runs another goroutine (#2) to mark that queue as computed after a
+// random interval. Queue consumer goroutine (#3) gets computed queues or sleeps if there are no computed
+// queues.
+//
+// Each goroutine sleeps at most 500 millis and the test manipulates 100 result queues in a holder with a max
+// capacity of 5 so if each routine sleeps an average of ~250 millis times 100 queues = max ~25000 millis. So the
+// test channel select allows 20 seconds for the test to succeed. This test uses a timed wait group pattern
+// as found in various places on the web
+func TestConcurrency(t *testing.T) {
+	rqh := NewResultQueueHolder(5)
+	queuesToTest := 100
+	wg:= globals.NewTimedWaitGroup(3)
+	rand.Seed(time.Now().UnixNano())
+	go func() {
+		queueCnt := 0
+		markComputedCount := 0
+		for true {
+			rq, ok := rqh.newQueue(0)
+			if !ok {
+				n := rand.Intn(500)
+				//t.Logf("%v new queue sleeping %v millis", time.Now(), n)
+				time.Sleep(time.Millisecond * time.Duration(n))
+			} else {
+				//t.Logf("%v new queue added: %v", time.Now(), rq.queNum)
+				// simulate independent thread marking the queue as computed sometime after requesting the queue
+				go func(rq *ResultQueue) {
+					n := rand.Intn(500)
+					//t.Logf("%v mark computed sleeping %v millis", time.Now(), n)
+					time.Sleep(time.Millisecond * time.Duration(n))
+					rq.computed = true
+					//t.Logf("%v queue set computed: %v", time.Now(), rq.queNum)
+					markComputedCount++
+					if markComputedCount >= queuesToTest {
+						wg.Done()
+						return
+					}
+				}(rq)
+				queueCnt++
+			}
+			if queueCnt >= queuesToTest {
+				wg.Done()
+				return
+			}
+		}
+	}()
+	go func() {
+		queueCnt := 0
+		for true {
+			rq, ok := rqh.nextComputedQueue()
+			if !ok {
+				n := rand.Intn(500)
+				//t.Logf("%v get computed queue sleeping %v millis", time.Now(), n)
+				time.Sleep(time.Millisecond * time.Duration(n))
+			} else {
+				queueCnt++
+				_ = rq // avoid unused 'rq' if log stmt commented out:
+				//t.Logf("%v computed queue consumed: %v", time.Now(), rq.queNum)
+			}
+			if queueCnt >= queuesToTest {
+				wg.Done()
+				return
+			}
+		}
+	}()
+	//t.Logf("%v start", time.Now())
+	wg.GoWait()
+	select {
+	case <-wg.Channel():
+		//t.Log("Waitgroup completed")
+	case <-time.After(time.Second * 20):
+		t.Error("Failed")
+	}
+	//t.Logf("%v finish", time.Now())
+}

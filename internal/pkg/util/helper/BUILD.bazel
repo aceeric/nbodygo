@@ -1,0 +1,21 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "axes.go",
+        "camera.go",
+        "grid.go",
+        "normals.go",
+    ],
+    importpath = "nbodygo/internal/pkg/util/helper",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/pkg/core:go_default_library",
+        "//internal/pkg/geometry:go_default_library",
+        "//internal/pkg/gls:go_default_library",
+        "//internal/pkg/graphic:go_default_library",
+        "//internal/pkg/material:go_default_library",
+        "//internal/pkg/math32:go_default_library",
+    ],
+)

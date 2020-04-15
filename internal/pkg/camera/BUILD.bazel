@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "camera.go",
+        "orbit_control.go",
+    ],
+    importpath = "nbodygo/internal/pkg/camera",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/pkg/core:go_default_library",
+        "//internal/pkg/gui:go_default_library",
+        "//internal/pkg/math32:go_default_library",
+        "//internal/pkg/util/logger:go_default_library",
+        "//internal/pkg/window:go_default_library",
+    ],
+)

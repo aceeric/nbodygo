@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "console.go",
+        "file.go",
+        "logger.go",
+        "net.go",
+    ],
+    importpath = "nbodygo/internal/pkg/util/logger",
+    visibility = ["//:__subpackages__"],
+)

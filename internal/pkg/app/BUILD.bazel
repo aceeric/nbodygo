@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "app.go",
+        "app-desktop.go",
+    ],
+    importpath = "nbodygo/internal/pkg/app",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/pkg/audio/al:go_default_library",
+        "//internal/pkg/audio/vorbis:go_default_library",
+        "//internal/pkg/renderer:go_default_library",
+        "//internal/pkg/util/logger:go_default_library",
+        "//internal/pkg/window:go_default_library",
+    ],
+)
