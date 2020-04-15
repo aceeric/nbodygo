@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+// TODO refactor to use channels to regulate queue size
+
 type ResultQueueHolder struct {
 	maxQueues int
 	queueNum  uint

@@ -23,7 +23,7 @@ const (
 
 func main() {
 	// Create application and scene
-	a := app.App(width, height)
+	a := app.App(width, height, "FOO!")
 	scene := core.NewNode()
 
 	// Set the scene to be managed by the gui manager
@@ -41,15 +41,17 @@ func main() {
 	//}
 	//a.Subscribe(window.OnWindowSize, onResize)
 
-	geom := geometry.NewSphere(10, 20, 20)
-	mat := material.NewStandard(math32.NewColor("firebrick"))
-	mesh := graphic.NewMesh(geom, mat)
-	scene.Add(mesh)
-
 	// Create and add light
 	l := light.NewDirectional(&math32.Color{1, 1, 1}, 5.0)
 	l.SetPosition(1000, 0, 0)
 	scene.Add(l)
+
+	// create one body
+	geom := geometry.NewSphere(10, 20, 20)
+	mat := material.NewStandard(math32.NewColor("firebrick"))
+	mesh := graphic.NewMesh(geom, mat)
+	mesh.SetPosition(0, 0, 0)
+	scene.Add(mesh)
 
 	// Set background color to black
 	a.Gls().ClearColor(0.0, 0.0, 0.0, 1.0)
@@ -58,6 +60,6 @@ func main() {
 	a.Run(func(renderer *renderer.Renderer, deltaTime time.Duration) {
 		a.Gls().Clear(gls.DEPTH_BUFFER_BIT | gls.STENCIL_BUFFER_BIT | gls.COLOR_BUFFER_BIT)
 		renderer.Render(scene, flyCam.Cam())
-		println(deltaTime.Milliseconds())
+		//println(deltaTime.Milliseconds())
 	})
 }

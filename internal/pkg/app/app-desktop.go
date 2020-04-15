@@ -34,7 +34,7 @@ type Application struct {
 }
 
 // App returns the Application singleton, creating it the first time.
-func App(width, height int) *Application {
+func App(width, height int, title string) *Application {
 
 	// Return singleton if already created
 	if a != nil {

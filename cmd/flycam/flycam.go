@@ -70,7 +70,7 @@ func NewFlyCam(glfwWindow *window.GlfwWindow, scene *core.Node, width int, heigh
 	flyCam.cam.SetPosition(flyCam.position.X, flyCam.position.Y, flyCam.position.Z)
 	flyCam.cam.LookAt(flyCam.position.Clone().Add(&flyCam.front), &flyCam.up)
 	flyCam.cam.SetAspect(float32(width) / float32(height))
-	flyCam.cam.SetFar(10000)
+	flyCam.cam.SetFar(10000) // TODO consider 400000
 	scene.Add(flyCam.cam)
 	engageCtrls(true)
 	return &flyCam

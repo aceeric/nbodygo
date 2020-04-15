@@ -37,6 +37,8 @@ type Body struct {
 	fragInfo FragInfo
 }
 
+
+
 func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float32, collisionBehavior globals.CollisionBehavior,
 	bodyColor globals.BodyColor, fragFactor, fragmentationStep float32, withTelemetry bool, name, class string,
 	pinned bool) Body {
@@ -65,7 +67,17 @@ func (body *Body) unLock() {
 	// TODO
 }
 
-func (body *Body) update(timeScaling float32) BodyRenderInfo {
+// begin SimBody interface implementation
+
+func (body *Body) Exists() bool {
+	return body.exists
+}
+
+func (body *Body) Id() int {
+	return body.id
+}
+
+func (body *Body) Update(timeScaling float32) BodyRenderInfo {
 	if !body.exists {
 		return NewBodyRenderInfo(body)
 	}
@@ -90,28 +102,30 @@ func (body *Body) update(timeScaling float32) BodyRenderInfo {
 }
 
 // TODO rename bodyQueue to bodies or some such
-func (body *Body) forceComputer(bodyQueue *cmap.ConcurrentMap, result chan<- bool) {
+func (body *Body) ForceComputer(bodyQueue *cmap.ConcurrentMap, result chan<- bool) {
 	// TODO panic/recover
 	if body.fragmenting {
 		body.fragment(bodyQueue)
 	} else {
 		body.fx, body.fy, body.fz = 0, 0, 0
 		for item := range bodyQueue.IterBuffered() {
-			otherBody := item.Val.(Body)
+			otherBody := item.Val.(*Body)
 			if !otherBody.exists || body.fragmenting {
 				break
 			}
-			if body != &otherBody && otherBody.exists && !otherBody.fragmenting {
+			if body != otherBody && otherBody.exists && !otherBody.fragmenting {
 				// todo metrics
-				result := body.calcForceFrom(&otherBody)
+				result := body.calcForceFrom(otherBody)
 				if result.collided {
-					body.resolveCollision(result.dist, &otherBody)
+					body.resolveCollision(result.dist, otherBody)
 				}
 			}
 		}
 	}
-	result <- true
+	result<- true
 }
+// end SimBody interface implementation
+
 
 func (body *Body) subsume(dist float32, otherBody *Body) {
 	// TODO

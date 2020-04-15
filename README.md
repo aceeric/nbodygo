@@ -22,10 +22,11 @@ cam speed
 engage/disengage keyboard
 
 TODO
+
 body
- - result queue holder
- - computation runner
+- g3napp
+
 sim
- - main
- - nbodysim
- - simgen (only one sim for starters)
+- main -- dummy up and test a few bodies
+- nbodysim
+- simgen (only one sim for starters)
