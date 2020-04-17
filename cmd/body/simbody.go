@@ -1,11 +1,33 @@
 package body
 
-import "nbodygo/cmd/cmap"
+import (
+	"nbodygo/cmd/bodyrender"
+	"nbodygo/cmd/cmap"
+)
 
-// The SimBody interface defines the functionality required to integrate a body into the computation runner
+//
+// The SimBody interface defines the functionality required to integrate a body into
+// the computation runner, and hence into the n-body simulation. This interface expresses only the
+// requirements for computation, not rendering
+//
 type SimBody interface {
-	ForceComputer(bodyQueue *cmap.ConcurrentMap, result chan<- bool)
-	Update(timeScaling float32) BodyRenderInfo
+	// Computes force on this body from all other bodies in the sim. Detects and resolves collisions with
+	// other bodies. Accumulates force in the body, and may change other body properties based on collision
+	ForceComputer(bodyQueue *cmap.ConcurrentMap)
+
+	// Updates velocity and position from the results of gravitational force calculation and collision
+	// resolution. The function returns a 'Renderable' which contains only the information needed to render
+	// the body in the rendering engine
+	Update(timeScaling float32) bodyrender.Renderable
+
+	// Returns true if the body exists, false if the body has been destroyed and should be
+	// removed from the simulation and the scene graph. A body can be destroyed if - for example - if gets
+	// subsumed into a larger body on impact
 	Exists() bool
+
+	// Every body must have a unique ID, which is used in various maps throughout the app
 	Id() int
+
+	// sets the body to be a Sun
+	SetSun()
 }

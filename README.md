@@ -1,5 +1,8 @@
 # nbodygo
-https://nbodygo/internal/pkg
+
+A project to learn Go. A port (in progress) of https://github.com/aceeric/nbodyjava
+ 
+Rough WIP. Many many TODOs...
 
 sudo apt install xorg-dev libgl1-mesa-dev libopenal1 libopenal-dev \
  libvorbis0a libvorbis-dev libvorbisfile3
@@ -11,22 +14,13 @@ bazel build not working
 but this works:
 go build -o $(pwd) ./...
 
-open requirements:
-1. add/remove geo from scene including lightsource
-2. Movement of bodies
-
-resolved requirements
-ability to create a sphere with one line of code
-flycam: WASDQZ / Mouse look
-cam speed
-engage/disengage keyboard
-
 TODO
 
-body
-- g3napp
-
 sim
-- main -- dummy up and test a few bodies
-- nbodysim
+- performance - currently horrible
+- g3n coordinate system reversed vs. JME?
+- main -- arg parse, etc
 - simgen (only one sim for starters)
+- get Bazel working
+- make the code idiomatic
+- etc..

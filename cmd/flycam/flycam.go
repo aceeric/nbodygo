@@ -1,4 +1,3 @@
-// Provides a basic fly camera with W-A-S-D control, and mouse look
 package flycam
 
 import (
@@ -10,6 +9,7 @@ import (
 )
 
 type CamValue float32
+
 const (
 	DefaultYaw           CamValue = -90.0
 	DefaultPitch         CamValue = 0.0
@@ -40,6 +40,7 @@ const (
 	FlyCamId         = 1234567
 	EngageDisengage  = 2345678
 	NoLastMousePos   = -1
+	FrustrumFar      = 10000 // TODO consider 400000
 )
 
 // singleton
@@ -70,7 +71,7 @@ func NewFlyCam(glfwWindow *window.GlfwWindow, scene *core.Node, width int, heigh
 	flyCam.cam.SetPosition(flyCam.position.X, flyCam.position.Y, flyCam.position.Z)
 	flyCam.cam.LookAt(flyCam.position.Clone().Add(&flyCam.front), &flyCam.up)
 	flyCam.cam.SetAspect(float32(width) / float32(height))
-	flyCam.cam.SetFar(10000) // TODO consider 400000
+	flyCam.cam.SetFar(FrustrumFar)
 	scene.Add(flyCam.cam)
 	engageCtrls(true)
 	return &flyCam
@@ -96,7 +97,8 @@ func (flyCam FlyCam) Cam() *camera.Camera {
 	return flyCam.cam
 }
 
-// don't unsubscribe handleF12 - it's always active
+// don't unsubscribe handleF12 - it's always active because even when the controls are disengaged we need
+// the F12 handler to allow us to re-engage
 func disengageCtrls() {
 	glfwWindow := flyCam.glfwWindow
 	glfwWindow.UnsubscribeID(window.OnKeyUp, FlyCamId)
@@ -164,7 +166,8 @@ func handleStrafeDn() {
 	updateView()
 }
 
-// oddly, y position decreases as the mouse goes up so negate it so that mouse up increases Y
+// oddly, G3N engine *decreases* y position as the mouse goes *up*, so negate the value from G3N
+// so that mouse up increases Y for consistency
 func handleMouseLook(event string, ev interface{}) {
 	var xPos, yPos float32
 	switch cev := ev.(type) {
@@ -227,7 +230,6 @@ func handleEsc(event string, ev interface{}) {
 	}
 }
 
-// based on https://learnopengl.com/code_viewer_gh.php?code=includes/learnopengl/camera.h
 func updateCamVectors() {
 	front := math32.Vector3{}
 	front.X = math32.Cos(math32.DegToRad(float32(flyCam.yaw))) * math32.Cos(math32.DegToRad(float32(flyCam.pitch)))

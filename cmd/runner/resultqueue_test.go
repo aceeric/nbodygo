@@ -1,4 +1,4 @@
-package body
+package runner
 
 import (
 	"math/rand"
@@ -10,15 +10,15 @@ import (
 // Tests setting a queue as computed, and getting computed queue
 func TestComputed(t *testing.T) {
 	rqh := NewResultQueueHolder(1)
-	rq, ok := rqh.newQueue(5)
+	rq, ok := rqh.NewQueue(5)
 	if ok {
 		rq.computed = true
 	} else {
 		t.Error("Failed to create new Queue")
 	}
-	rq, ok = rqh.nextComputedQueue()
+	rq, ok = rqh.NextComputedQueue()
 	if ok {
-		println(rq.queue)
+		//println(rq.queue)
 	} else {
 		t.Error("Expected a computed queue")
 	}
@@ -27,12 +27,12 @@ func TestComputed(t *testing.T) {
 // tests getting computed queue when there are no computed queues
 func TestNoComputed(t *testing.T) {
 	rqh := NewResultQueueHolder(1)
-	_, ok := rqh.newQueue(5)
+	_, ok := rqh.NewQueue(5)
 	if !ok {
 		t.Error("Failed to create new Queue")
 	}
 	// don't set computed
-	_, ok = rqh.nextComputedQueue()
+	_, ok = rqh.NextComputedQueue()
 	if ok {
 		t.Error("Did not expect a computed queue")
 	}
@@ -41,11 +41,11 @@ func TestNoComputed(t *testing.T) {
 // tests adding a queue when there is no capacity to add a queue
 func TestNoCapacity(t *testing.T) {
 	rqh := NewResultQueueHolder(1)
-	_, ok := rqh.newQueue(5)
+	_, ok := rqh.NewQueue(5)
 	if !ok {
 		t.Error("Failed to create new Queue")
 	}
-	_, ok = rqh.newQueue(5)
+	_, ok = rqh.NewQueue(5)
 	if ok {
 		t.Error("Should not have been able to create queue")
 	}
@@ -56,11 +56,11 @@ func TestOrder(t *testing.T) {
 	rqh := NewResultQueueHolder(3)
 	// create three queues, setting all to computed
 	for i := 0; i < 3; i++ {
-		rq, _ := rqh.newQueue(1)
+		rq, _ := rqh.NewQueue(1)
 		rq.computed = true
 	}
 	for i := 0; i < 3; i++ {
-		rq, _ := rqh.nextComputedQueue()
+		rq, _ := rqh.NextComputedQueue()
 		if rq.queNum != uint(i) {
 			t.Error("Got queue in unexpected order")
 		}
@@ -86,7 +86,7 @@ func TestConcurrency(t *testing.T) {
 		queueCnt := 0
 		markComputedCount := 0
 		for true {
-			rq, ok := rqh.newQueue(0)
+			rq, ok := rqh.NewQueue(0)
 			if !ok {
 				n := rand.Intn(500)
 				//t.Logf("%v new queue sleeping %v millis", time.Now(), n)
@@ -117,7 +117,7 @@ func TestConcurrency(t *testing.T) {
 	go func() {
 		queueCnt := 0
 		for true {
-			rq, ok := rqh.nextComputedQueue()
+			rq, ok := rqh.NextComputedQueue()
 			if !ok {
 				n := rand.Intn(500)
 				//t.Logf("%v get computed queue sleeping %v millis", time.Now(), n)

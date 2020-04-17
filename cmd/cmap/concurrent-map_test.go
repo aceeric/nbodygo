@@ -51,7 +51,7 @@ func TestConcurrent(t *testing.T) {
 			if item == nil {
 				t.Error("Unable to access bodyQueue as expected")
 			}
-			bodyQueue.Remove(item.(*TestBody).id)
+			bodyQueue.Remove(item.(*TestBody).id) // Items() we have to access as pointer but Iter not!?!
 			removed++
 			duration := time.Now().Sub(start)
 			if duration.Seconds() >= 5 {
