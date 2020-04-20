@@ -97,6 +97,7 @@ var testBodies = []bodyCsvRow {
 
 func main() {
 	var bodies []interfaces.SimBody
+	render := true
 	/*
 	for id, row := range testBodies {
 		b := body.NewBody(id, row.x, row.y, row.z, row.vx, row.vy, row.vz, row.mass, row.radius, globals.Elastic,
@@ -115,7 +116,7 @@ func main() {
 		globals.White, 0, 0, false, "", "",false)
 	b3.SetSun()
 	bodies = append(bodies, &b1, &b2, &b3)
-	bodies = sim.Sim1(500, globals.Elastic, globals.Random, "")
+	bodies = sim.Sim1(2500, globals.Elastic, globals.Random, "")
 
 	sim.NewNBodySimBuilder().
 		Bodies(bodies).
@@ -123,7 +124,7 @@ func main() {
 		Scaling(.000000002).
 		InitialCam(*math32.NewVector3(10, 100, 800)).
 		SimThread(nil).
-		Render(true).
+		Render(render).
 		Resolution([2]int{2560, 1405}).
 		VSync(true).
 		FrameRate(-1).

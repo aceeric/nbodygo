@@ -36,7 +36,7 @@ func Sim1(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBod
 	var bodies []interfaces.SimBody
 	id := 0
 	var vx, vy, vz, y, mass, radius float64
-	V := float64(758000000)
+	V := float64(958000000)
 	rand.Seed(time.Now().UnixNano())
 	for i := -1; i <= 1; i += 2 {
 		for j := -1; j <= 1; j += 2 {

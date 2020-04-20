@@ -156,6 +156,7 @@ func (b *Body) ForceComputer(cc interfaces.SimBodyCollection) {
 				result := b.calcForceFrom(otherBody)
 				if result.collided {
 					b.resolveCollision(result.dist, otherBody)
+					//fmt.Printf("%v -- id %v collided with id %v\n", time.Now(), b.id, otherBody.id)
 				}
 			}
 		})
@@ -304,14 +305,10 @@ func (b *Body) resolveCollision(dist float64, otherBody *Body) {
 						b.doElastic(otherBody, r)
 					}
 				}
-				defer func() {
-					if r := recover(); r != nil {
-						b.unLock()
-						if otherLock {
-							otherBody.unLock()
-						}
-					}
-				}()
+				b.unLock()
+				if otherLock {
+					otherBody.unLock()
+				}
 			}
 			if b.collided {
 				// TODO LOGGING
