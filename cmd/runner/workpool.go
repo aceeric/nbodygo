@@ -1,144 +1,100 @@
 package runner
 
-/*
-#define _GNU_SOURCE
-#include <sched.h>
-#include <pthread.h>
-
-void lock_thread(int cpuid) {
-        pthread_t tid;
-        cpu_set_t cpuset;
-
-        tid = pthread_self();
-        CPU_ZERO(&cpuset);
-        CPU_SET(cpuid, &cpuset);
-    pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
-}
-*/
-import "C"
-
 import (
-	"nbodygo/cmd/body"
-	"nbodygo/cmd/cmap"
-	"runtime"
+	"fmt"
+	"nbodygo/cmd/interfaces"
 	"sync"
 	"time"
 )
 
-// contains a body - to compute force for - and a map of all other bodies in the simulation
-type Computation struct {
-	body *body.SimBody
-	bodyQueue *cmap.ConcurrentMap
+type WorkPool struct {
+	wrkIdx      uint
+	workers     []*Worker
+	wg          sync.WaitGroup
+	submissions int64
+	millis      int64
+	cc          interfaces.SimBodyCollection
 }
 
-// defines a function that computes force on a body from other bodies in the simulation
-type ComputeFunc func(*Computation)
+type Worker struct {
+	id          uint
+	stop        chan bool
+	compute     chan interfaces.SimBody
+	invocations int
+	millis      int64
+}
 
-// Intended to be run as a goroutine. Pins itself to a CPU and runs indefinitely until
-// it is signalled to stop. Receives work to perform on a channel in the Worker param
-func bodyComputer(worker Worker, wg *sync.WaitGroup, computeFunc ComputeFunc) {
-    // TODO PUT BACK
-	runtime.LockOSThread()
-	C.lock_thread(C.int(worker.cpu))
-	if computeFunc == nil {
-        computeFunc = DefaultComputeFunc
-    }
+func worker(w *Worker, wg *sync.WaitGroup, cc interfaces.SimBodyCollection) {
+	millis := int64(0)
+	invocations := 0
 	for {
 		select {
-		case <-worker.killChan:
+		case <-w.stop:
+			// note that this may leave the go routine with items still enqueued on the w.compute channel
+			// so this shutdown leaves unfinished work
+			w.invocations = invocations
+			w.millis = millis
+			w.stop<- true
 			return
-		case c := <-worker.computation:
-            computeFunc(&c)
-            worker.invocations++
-            wg.Done()
+		case c := <-w.compute:
+			start := time.Now()
+			c.ForceComputer(cc)
+			invocations++
+			wg.Done()
+			millis += time.Now().Sub(start).Milliseconds()
 		default:
-			time.Sleep(time.Millisecond * 5)
 		}
 	}
 }
 
-// A dummy default compute function
-func DefaultComputeFunc(*Computation) {
-    time.Sleep(time.Millisecond * 50)
-}
-
-// defines that things needed by a body computer
-type Worker struct {
-    id          uint
-	killChan    chan bool
-	computation chan Computation
-	cpu         uint
-	invocations uint
-}
-
-// defines a worker pool
-type WorkPool struct {
-    wrkIdx uint
-    cpus   uint
-	workers []Worker
-	wg      sync.WaitGroup
-}
-
-// creates a new worker pool with the passed number of threads, and the passed computation
-// function. Spins up 'threads' number of goroutines running the  passed function
-func NewWorkPool(threads int, computeFunc ComputeFunc) *WorkPool {
+func NewWorkPool(goroutines int, cc interfaces.SimBodyCollection) *WorkPool {
 	wp := WorkPool{
-        wrkIdx:  0,
-        cpus:    uint(runtime.NumCPU()),
-		workers: []Worker{},
-		wg:      sync.WaitGroup{},
-    }
-	for i := 0; i < threads; i++ {
+		wrkIdx:      0,
+		workers:     []*Worker{},
+		wg:          sync.WaitGroup{},
+		submissions: 0,
+		millis:      0,
+		cc:          cc,
+	}
+	for i := 0; i < goroutines; i++ {
 		w := Worker{
-            id:          uint(i),
-			killChan:    make(chan bool),
-			computation: make(chan Computation, 4), // 4 is a guess, probably 2 would be ok...
-			cpu:         uint(i) % wp.cpus,
-            invocations: 0,
+			id:          uint(i),
+			stop:        make(chan bool),
+			compute:     make(chan interfaces.SimBody, 5), // TODO buffer irrelevant?
+			invocations: 0,
+			millis:      0,
 		}
-		wp.workers = append(wp.workers, w)
-		if computeFunc == nil {
-            computeFunc = DefaultComputeFunc
-        }
-		go bodyComputer(w, &wp.wg, computeFunc)
+		wp.workers = append(wp.workers, &w)
+		go worker(&w, &wp.wg, cc)
 	}
 	return &wp
 }
 
-// signals all goroutines in the worker pool to stop. (They may not stop right away if they are performing
-// a computation)
-func (wp *WorkPool) StopAll() {
-	for _, worker := range wp.workers {
-		worker.killChan <- true
+func (wp *WorkPool) ShutDownWorkPool() {
+	for _, w := range wp.workers {
+		w.stop <- true
+		<-w.stop
 	}
 }
 
-// future
-func (wp *WorkPool) setThreads(threads int) {
-	// TODO handle increase / decrease in threads balancing across cpus
+func (wp *WorkPool) PrintStats() {
+	fmt.Printf("Worker Pool\n submissions: %v\n millis: %v\n millis/submission: %v\n", wp.submissions,
+		wp.millis, float32(wp.millis)/float32(wp.submissions))
+	for _, w := range wp.workers {
+		fmt.Printf("> Worker id: %v invocations: %v millis: %v millis/invocation: %v\n", w.id,
+			w.invocations, w.millis, float32(w.millis)/float32(w.invocations))
+	}
 }
 
-// creates a Computation from the passed args, and submits it round-robin to the pool. The design
-// assumption is each computation will take approximately the same time to complete and so there doesn't
-// need to be anything fancy with regard to finding the least utilized goroutine and assigning the
-// work to that routine
-func (wp *WorkPool) submit(b *body.SimBody, bodyQueue *cmap.ConcurrentMap) {
-    worker := wp.workers[wp.wrkIdx % uint(len(wp.workers))]
-    wp.wg.Add(1)
-    // computation channel is buffered so we get concurrency as well as a limited number of threads
-    // with thread-cpu affinity
-	//start := time.Now()
-    worker.computation<- Computation{
-        body:      b,
-        bodyQueue: bodyQueue,
-    }
-	//stop := time.Now()
-	//millis := stop.Sub(start).Milliseconds()
-	//fmt.Printf("Worker id %v, latency millis=%v\n", worker.id, millis)
-    wp.wrkIdx++
+func (wp *WorkPool) submit(c interfaces.SimBody) {
+	start := time.Now()
+	wp.wg.Add(1)
+	wp.workers[wp.wrkIdx%uint(len(wp.workers))].compute <- c
+	wp.submissions++
+	wp.wrkIdx++
+	wp.millis += time.Now().Sub(start).Milliseconds()
 }
 
-// waits for one work to complete
-func (wp *WorkPool) take() {
+func (wp *WorkPool) wait() {
 	wp.wg.Wait()
 }

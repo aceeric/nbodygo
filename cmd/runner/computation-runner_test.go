@@ -6,6 +6,7 @@ import (
 	"nbodygo/cmd/bodyrender"
 	"nbodygo/cmd/cmap"
 	"nbodygo/cmd/globals"
+	"nbodygo/cmd/interfaces"
 	"nbodygo/cmd/util"
 	"testing"
 	"time"
@@ -30,7 +31,7 @@ func (tb *TestBody) ForceComputer(bodyQueue *cmap.ConcurrentMap) {
 	}
 }
 
-func (tb *TestBody) Update(float32) bodyrender.Renderable {
+func (tb *TestBody) Update(float32) interfaces.Renderable {
 	return bodyrender.NewEmpty()
 }
 
@@ -42,8 +43,11 @@ func (tb *TestBody) Id() int {
 	return tb.id
 }
 
+func (tb *TestBody) SetSun(){
+}
+
 // https://splice.com/blog/golang-verify-type-implements-interface-compile-time/
-var _ body.SimBody = (*TestBody)(nil)
+var _ interfaces.SimBody = (*TestBody)(nil)
 
 // tests that the computation runner doesn't fail with no bodies
 func TestRunnerNoBodies(t *testing.T) {
@@ -68,14 +72,14 @@ func TestThisWorks(t *testing.T) {
 	iface = &TestBody{}
 	zxc := iface.(*TestBody)
 	t.Logf("%v\n", zxc)
-	qwe := iface.(body.SimBody) // but when deref interface - don't use pointer !?!?!??!
+	qwe := iface.(interfaces.SimBody) // but when deref interface - don't use pointer !?!?!??!
 	t.Logf("%v\n", qwe)
-	qwe2 := iface.(body.SimBody)
+	qwe2 := iface.(interfaces.SimBody)
 	t.Logf("%v\n", qwe2)
 	qwe2.Exists()
 	t.Logf("%v\n", e)
 	t.Logf("%v\n", e.Exists())
-	b := z.i.(body.SimBody)
+	b := z.i.(interfaces.SimBody)
 	t.Logf("%+v\n", b)
 }
 
@@ -86,7 +90,7 @@ func TestBodyQueue(t *testing.T) {
 		bodyQueue.Set(i, &TestBody{i, true, 0}) // ampersand
 	}
 	for item := range bodyQueue.IterBuffered() {
-		b := item.Val.(body.SimBody) // no pointer
+		b := item.Val.(interfaces.SimBody) // no pointer
 		_ = b
 		//t.Logf("%+v\n", b)
 	}
@@ -174,7 +178,7 @@ func TestDeleteMe(t *testing.T) {
 	iterations := int64(0)
 	for i := 0; i < 10000; i++ {
 		for item := range bodyQueue.IterBuffered() {
-			b := item.Val.(body.SimBody) // no pointer
+			b := item.Val.(interfaces.SimBody) // no pointer
 			_ = b
 		}
 		iterations++

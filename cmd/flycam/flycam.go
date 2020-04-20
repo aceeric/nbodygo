@@ -46,7 +46,7 @@ const (
 // singleton
 var flyCam FlyCam
 
-func NewFlyCam(glfwWindow *window.GlfwWindow, scene *core.Node, width int, height int) *FlyCam {
+func NewFlyCam(glfwWindow *window.GlfwWindow, scene *core.Node, width int, height int, initialPosition math32.Vector3) *FlyCam {
 	if flyCam.glfwWindow != nil {
 		panic("Cannot call NewFlyCam twice")
 	}
@@ -56,7 +56,7 @@ func NewFlyCam(glfwWindow *window.GlfwWindow, scene *core.Node, width int, heigh
 	flyCam = FlyCam{
 		glfwWindow,
 		camera.New(1),
-		*math32.NewVector3(10, 10, 100),
+		initialPosition,
 		*math32.NewVector3(0, 0, -1),
 		*math32.NewVector3(0, 1, 0),
 		math32.Vector3{},

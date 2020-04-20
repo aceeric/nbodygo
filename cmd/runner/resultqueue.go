@@ -3,7 +3,7 @@ package runner
 import (
 	"container/list"
 	"fmt"
-	"nbodygo/cmd/bodyrender"
+	"nbodygo/cmd/interfaces"
 	"sync"
 )
 
@@ -19,14 +19,14 @@ type ResultQueueHolder struct {
 type ResultQueue struct {
 	computed bool
 	queNum uint
-	queue []bodyrender.Renderable // TODO RENAME - ITS NOT A QUEUE IS IT? JUST USED AS AN ARRAY
+	queue []interfaces.Renderable // TODO RENAME - ITS NOT A QUEUE IS IT? JUST USED AS AN ARRAY
 }
 
 func (rq *ResultQueue) SetComputed() {
 	rq.computed = true
 }
 
-func (rq *ResultQueue) Queue() []bodyrender.Renderable {
+func (rq *ResultQueue) Queue() []interfaces.Renderable {
 	return rq.queue
 }
 
@@ -34,11 +34,11 @@ func NewResultQueue(queNum uint, capacity int) *ResultQueue  {
 	return &ResultQueue{
 		computed: false,
 		queNum:   queNum,
-		queue:    make([]bodyrender.Renderable, 0),
+		queue:    make([]interfaces.Renderable, 0),
 	}
 }
 
-func (rq *ResultQueue) AddRenderable(info bodyrender.Renderable) {
+func (rq *ResultQueue) AddRenderable(info interfaces.Renderable) {
 	rq.queue = append(rq.queue, info) // TODO HOW TO DO THIS MORE GO-LIKE?
 }
 

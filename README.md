@@ -16,6 +16,15 @@ go build -o $(pwd) ./...
 
 TODO
 
+
+### body queue
+- initial population
+- removal by comp runner as bodies set !exists
+- addition by gRPC
+- addition by fragmentation
+
+
+
 sim
 - performance - currently horrible
 - g3n coordinate system reversed vs. JME?

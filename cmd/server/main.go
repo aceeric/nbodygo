@@ -3,6 +3,7 @@ package main
 import (
 	"nbodygo/cmd/body"
 	"nbodygo/cmd/globals"
+	"nbodygo/cmd/interfaces"
 	"nbodygo/cmd/sim"
 	"nbodygo/internal/pkg/math32"
 )
@@ -95,22 +96,32 @@ var testBodies = []bodyCsvRow {
 }
 
 func main() {
-	var bodies []body.Body
-	// hack in some bodies for now
+	var bodies []interfaces.SimBody
+	/*
 	for id, row := range testBodies {
 		b := body.NewBody(id, row.x, row.y, row.z, row.vx, row.vy, row.vz, row.mass, row.radius, globals.Elastic,
 			globals.Red, 0, 0, false, "", "",false)
 		if id == 0 {
 			b.SetSun()
 		}
-		bodies = append(bodies, b)
+		bodies = append(bodies, &b)
 	}
+	*/
+	b1 := body.NewBody(1, 100, 0, 0, -100000000, 0, 0, 1e30, 24, globals.Elastic,
+		globals.Red, 0, 0, false, "", "",false)
+	b2 := body.NewBody(2, -100, 0, 0, 200000000, 53112323, 0, 1e12, 20, globals.Elastic,
+		globals.Yellow, 0, 0, false, "", "",false)
+	b3 := body.NewBody(3, 1200, 1220, 1600, 0, 0, 0, 1e1, 20, globals.Elastic,
+		globals.White, 0, 0, false, "", "",false)
+	b3.SetSun()
+	bodies = append(bodies, &b1, &b2, &b3)
+	bodies = sim.Sim1(500, globals.Elastic, globals.Random, "")
 
 	sim.NewNBodySimBuilder().
 		Bodies(bodies).
 		Threads(5).
-		Scaling(.000000001).
-		InitialCam(*math32.NewVector3(10, 100, -300)).
+		Scaling(.000000002).
+		InitialCam(*math32.NewVector3(10, 100, 800)).
 		SimThread(nil).
 		Render(true).
 		Resolution([2]int{2560, 1405}).

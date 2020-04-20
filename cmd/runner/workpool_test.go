@@ -1,6 +1,8 @@
 package runner
 
 import (
+	"nbodygo/cmd/cmap"
+	"nbodygo/cmd/interfaces"
 	"sync"
 	"testing"
 	"time"
@@ -15,7 +17,7 @@ func TestBodyComputer(t *testing.T) {
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	go bodyComputer(w, &wg, nil)
+	go bodyComputer(&w, &wg, nil)
 	w.computation<- Computation{
 		body:      nil,
 		bodyQueue: nil,
@@ -43,7 +45,8 @@ func TestWorkPoolCustomFun(t *testing.T) {
 	testVal := 0
 	const workers = 20000
 	workChan := make(chan int, workers * 1.1) // no blocking on the channel
-	wp := NewWorkPool(20, func(*Computation) {
+	//wp := NewWorkPool(20, func(*Computation) {
+    wp := NewWorkPool(20, func(*interfaces.SimBody, *cmap.ConcurrentMap)  {
 		workChan<- 1
 	})
 	go func() {

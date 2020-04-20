@@ -3,23 +3,20 @@ package body
 import (
 	"math"
 	"nbodygo/cmd/bodyrender"
-	"nbodygo/cmd/cmap"
 	"nbodygo/cmd/globals"
-	"nbodygo/internal/pkg/math32"
+	"nbodygo/cmd/interfaces"
+	"nbodygo/cmd/util"
 	"sync"
 	"sync/atomic"
 )
 
-// TODO POINTERS OR VALUES THROUGHOUT???
-// TODO float64 throughout?
-
 const (
 	G                float64 = 6.673e-11         // gravitational constant
-	fourThirdsPi     float32 = math.Pi * (4 / 3) // used in volume/radius calcs
-	fourPi           float32 = math.Pi * 4       // "
-	R                float32 = 1                 // coefficient of  restitution
+	fourThirdsPi     float64 = math.Pi * (4 / 3) // used in volume/radius calcs
+	fourPi           float64 = math.Pi * 4       // "
+	R                float64 = 1                 // coefficient of  restitution
 	maxFragsPerCycle int     = 100
-	maxFrags         float32 = 2000
+	maxFrags         float64 = 2000
 )
 
 type Body struct {
@@ -28,13 +25,13 @@ type Body struct {
 	class                             string
 	collided                          bool
 	fragmenting                       bool
-	x, y, z, vx, vy, vz, radius, mass float32
+	x, y, z, vx, vy, vz, radius, mass float64
 	fx, fy, fz                        float64
-	fragFactor, fragmentationStep     float32
+	fragFactor, fragmentationStep     float64
 	collisionBehavior                 globals.CollisionBehavior
 	bodyColor                         globals.BodyColor
 	// TODO R should be "class" scope
-	R             float32
+	R             float64
 	isSun         bool
 	exists        bool
 	lock          int32
@@ -46,14 +43,14 @@ type Body struct {
 // TODO this might be stupid:
 type BodyOverrides struct {
 	Id           int
-	Position     math32.Vector3
-	Velocity     math32.Vector3
-	Mass, Radius float32
+	Position     util.Vector3
+	Velocity     util.Vector3
+	Mass, Radius float64
 }
 
 // creates a body that exists with hard-coded values and properties typically of interest specified as function args
-func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float32, collisionBehavior globals.CollisionBehavior,
-	bodyColor globals.BodyColor, fragFactor, fragmentationStep float32, withTelemetry bool, name, class string,
+func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float64, collisionBehavior globals.CollisionBehavior,
+	bodyColor globals.BodyColor, fragFactor, fragmentationStep float64, withTelemetry bool, name, class string,
 	pinned bool) Body {
 	b := Body{
 		id:                id,
@@ -89,107 +86,112 @@ func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float32, collisionBehavio
 
 // TODO getters?
 
-func (body *Body) mod() bool {
+func (b *Body) mod() bool {
 	return false // TODO
 }
 
-func (body *Body) tryLock() bool {
-	return atomic.CompareAndSwapInt32(&body.lock, 0, 1)
+func (b *Body) tryLock() bool {
+	return atomic.CompareAndSwapInt32(&b.lock, 0, 1)
 }
 
-func (body *Body) unLock() {
-	atomic.CompareAndSwapInt32(&body.lock, 1, 0)
+func (b *Body) unLock() {
+	atomic.CompareAndSwapInt32(&b.lock, 1, 0)
 }
 
 // begin SimBody and Renderable interface implementation(s)
 
-func (body *Body) Id() int                      { return body.id }
-func (body *Body) Exists() bool                 { return body.exists }
-func (body *Body) X() float32                   { return body.x }
-func (body *Body) Y() float32                   { return body.y }
-func (body *Body) Z() float32                   { return body.z }
-func (body *Body) Radius() float32              { return body.radius }
-func (body *Body) IsSun() bool                  { return body.isSun }
-func (body *Body) SetSun()                      { body.isSun = true}
-func (body *Body) BodyColor() globals.BodyColor { return body.bodyColor }
+func (b *Body) Id() int                      { return b.id }
+func (b *Body) Exists() bool                 { return b.exists }
+func (b *Body) X() float64                   { return b.x }
+func (b *Body) Y() float64                   { return b.y }
+func (b *Body) Z() float64                   { return b.z }
+func (b *Body) X32() float32                 { return float32(b.x) }
+func (b *Body) Y32() float32                 { return float32(b.y) }
+func (b *Body) Z32() float32                 { return float32(b.z) }
+func (b *Body) Radius() float64              { return b.radius }
+func (b *Body) Radius32() float32            { return float32(b.radius) }
+func (b *Body) IsSun() bool                  { return b.isSun }
+func (b *Body) SetSun()                      { b.isSun = true }
+func (b *Body) BodyColor() globals.BodyColor { return b.bodyColor }
 
-func (body *Body) Update(timeScaling float32) bodyrender.Renderable {
-	if !body.exists {
-		return bodyrender.NewFromRenderable(body)
+func (b *Body) Update(timeScaling float64) interfaces.Renderable {
+	if !b.exists {
+		return bodyrender.NewFromRenderable(b)
 	}
-	if !body.collided {
-		body.vx += timeScaling * float32(body.fx) / body.mass
-		body.vy += timeScaling * float32(body.fy) / body.mass
-		body.vz += timeScaling * float32(body.fz) / body.mass
+	if !b.collided {
+		b.vx += timeScaling * b.fx / b.mass
+		b.vy += timeScaling * b.fy / b.mass
+		b.vz += timeScaling * b.fz / b.mass
 	}
-	body.x += timeScaling * body.vx
-	body.y += timeScaling * body.vy
-	body.z += timeScaling * body.vz
+	b.x += timeScaling * b.vx
+	b.y += timeScaling * b.vy
+	b.z += timeScaling * b.vz
 	// clear collided flag for next cycle
-	body.collided = false
-	if body.withTelemetry {
-		// TODO print body to console
+	b.collided = false
+	if b.withTelemetry {
+		// TODO print b to console
 	}
-	if math32.IsNaN(body.x) || math32.IsNaN(body.y) || math32.IsNaN(body.z) {
+	if math.IsNaN(b.x) || math.IsNaN(b.y) || math.IsNaN(b.z) {
 		// TODO logger
-		body.exists = false
+		b.exists = false
 	}
-	return bodyrender.NewFromRenderable(body)
+	return bodyrender.NewFromRenderable(b)
 }
 
 // TODO rename bodyQueue to bodies or some such
-func (body *Body) ForceComputer(bodyQueue *cmap.ConcurrentMap) {
+// TODO equivalent of Java synchronized primitive which is a guaranteed atomic read/write
+func (b *Body) ForceComputer(cc interfaces.SimBodyCollection) {
 	// TODO panic/recover
-	if body.fragmenting {
-		body.fragment(bodyQueue)
+	if b.fragmenting {
+		b.fragment(cc)
 	} else {
-		body.fx, body.fy, body.fz = 0, 0, 0
-		for item := range bodyQueue.IterBuffered() {
-			otherBody := item.Val.(*Body)
-			if !otherBody.exists || body.fragmenting {
-				break
+		b.fx, b.fy, b.fz = 0, 0, 0
+		cc.IterateOnce(func(c interfaces.SimBody) {
+			otherBody := c.(*Body)
+			if !otherBody.exists || b.fragmenting {
+				return
 			}
-			if body != otherBody && otherBody.exists && !otherBody.fragmenting {
+			if b != otherBody && otherBody.exists && !otherBody.fragmenting {
 				// todo metrics
-				result := body.calcForceFrom(otherBody)
+				result := b.calcForceFrom(otherBody)
 				if result.collided {
-					body.resolveCollision(result.dist, otherBody)
+					b.resolveCollision(result.dist, otherBody)
 				}
 			}
-		}
+		})
 	}
 }
 
 // end SimBody interface implementation
 
-func (body *Body) subsume(dist float32, otherBody *Body) {
-	if dist+otherBody.radius >= body.radius*1.2 {
-		// leave unless most of the other body is inside this body
+func (b *Body) subsume(dist float64, otherBody *Body) {
+	if dist+otherBody.radius >= b.radius*1.2 {
+		// leave unless most of the other b is inside this b
 		return
 	}
 	subsumed := false
-	var thisMass, otherMass float32
+	var thisMass, otherMass float64
 	// todo defer handle unlock
-	if body.tryLock() {
+	if b.tryLock() {
 		otherLock := otherBody.tryLock()
 		if otherLock {
-			thisMass = body.mass
+			thisMass = b.mass
 			otherMass = otherBody.mass
 			/*
 				TODO:
-				If I allow the radius to grow it occasionally causes a runaway condition in which a body
+				If I allow the radius to grow it occasionally causes a runaway condition in which a b
 				swallows the entire simulation. Need to figure this out
-				volume := (fourThirdsPi * body.radius  * body.radius  * body.radius) +
+				volume := (fourThirdsPi * b.radius  * b.radius  * b.radius) +
 					(fourThirdsPi * otherBody.radius  * otherBody.radius  * otherBody.radius)
-				newRadius := math32.Pow(((volume * 3) / fourPi, 1/3);
+				newRadius := math.Pow(((volume * 3) / fourPi, 1/3);
 				TODOLOG("old radius: {} -- new radius: {}", radius, newRadius);
-				body.radius = newRadius;
+				b.radius = newRadius;
 			*/
-			body.mass = thisMass + otherMass
+			b.mass = thisMass + otherMass
 			otherBody.setNotExists()
 			subsumed = true
 		}
-		body.unLock()
+		b.unLock()
 		if otherLock {
 			otherBody.unLock()
 		}
@@ -200,13 +202,13 @@ func (body *Body) subsume(dist float32, otherBody *Body) {
 
 }
 
-func (body *Body) CopyOfWithOverrides(bo BodyOverrides) *Body {
+func (b *Body) CopyOfWithOverrides(bo BodyOverrides) *Body {
 	return &Body{
 		bo.Id,
-		body.name,
-		body.class,
-		body.collided,
-		body.fragmenting,
+		b.name,
+		b.class,
+		b.collided,
+		b.fragmenting,
 		bo.Position.X,
 		bo.Position.Y,
 		bo.Position.Z,
@@ -215,142 +217,142 @@ func (body *Body) CopyOfWithOverrides(bo BodyOverrides) *Body {
 		bo.Velocity.X,
 		bo.Radius,
 		bo.Mass,
-		body.fx,
-		body.fy,
-		body.fz,
-		body.fragFactor,
-		body.fragmentationStep,
-		body.collisionBehavior,
-		body.bodyColor,
-		body.R,
-		body.isSun,
-		body.exists,
-		body.lock,
-		body.withTelemetry,
-		body.pinned,
-		body.fragInfo,
+		b.fx,
+		b.fy,
+		b.fz,
+		b.fragFactor,
+		b.fragmentationStep,
+		b.collisionBehavior,
+		b.bodyColor,
+		b.R,
+		b.isSun,
+		b.exists,
+		b.lock,
+		b.withTelemetry,
+		b.pinned,
+		b.fragInfo,
 	}
 }
 
-func (body *Body) CopyOf() *Body {
+func (b *Body) CopyOf() *Body {
 	return &Body{
-		body.id,
-		body.name,
-		body.class,
-		body.collided,
-		body.fragmenting,
-		body.x,
-		body.y,
-		body.z,
-		body.vx,
-		body.vy,
-		body.vz,
-		body.radius,
-		body.mass,
-		body.fx,
-		body.fy,
-		body.fz,
-		body.fragFactor,
-		body.fragmentationStep,
-		body.collisionBehavior,
-		body.bodyColor,
-		body.R,
-		body.isSun,
-		body.exists,
-		body.lock,
-		body.withTelemetry,
-		body.pinned,
-		body.fragInfo,
+		b.id,
+		b.name,
+		b.class,
+		b.collided,
+		b.fragmenting,
+		b.x,
+		b.y,
+		b.z,
+		b.vx,
+		b.vy,
+		b.vz,
+		b.radius,
+		b.mass,
+		b.fx,
+		b.fy,
+		b.fz,
+		b.fragFactor,
+		b.fragmentationStep,
+		b.collisionBehavior,
+		b.bodyColor,
+		b.R,
+		b.isSun,
+		b.exists,
+		b.lock,
+		b.withTelemetry,
+		b.pinned,
+		b.fragInfo,
 	}
 }
 
-func (body *Body) calcForceFrom(otherBody *Body) ForceCalcResult {
-	dx := otherBody.x - body.x
-	dy := otherBody.y - body.y
-	dz := otherBody.z - body.z
-	dist := float32(math.Sqrt(float64(dx*dx + dy*dy + dz*dz)))
-	if body.collided || dist > body.radius+otherBody.radius {
-		force := G * float64(body.mass) * float64(otherBody.mass) / float64(dist*dist)
-		body.fx += force * float64(dx) / float64(dist)
-		body.fy += force * float64(dy) / float64(dist)
-		body.fz += force * float64(dz) / float64(dist)
-	} else if dist <= body.radius+otherBody.radius {
+func (b *Body) calcForceFrom(otherBody *Body) ForceCalcResult {
+	dx := otherBody.x - b.x
+	dy := otherBody.y - b.y
+	dz := otherBody.z - b.z
+	dist := math.Sqrt(dx*dx + dy*dy + dz*dz)
+	if b.collided || dist > b.radius + otherBody.radius {
+		force := G * b.mass * otherBody.mass / (dist * dist)
+		b.fx += force * dx / dist
+		b.fy += force * dy / dist
+		b.fz += force * dz / dist
+	} else if dist <= b.radius + otherBody.radius {
 		return Collision(dist) // TODO NOT idiomatic?
 	}
 	return NoCollision() // TODO NOT idiomatic?
 }
 
-func (body *Body) resolveCollision(dist float32, otherBody *Body) {
-	if body.collisionBehavior == globals.Subsume || otherBody.collisionBehavior == globals.Subsume {
-		if body.radius > otherBody.radius {
-			body.subsume(dist, otherBody)
+func (b *Body) resolveCollision(dist float64, otherBody *Body) {
+	if b.collisionBehavior == globals.Subsume || otherBody.collisionBehavior == globals.Subsume {
+		if b.radius > otherBody.radius {
+			b.subsume(dist, otherBody)
 		} else {
-			otherBody.subsume(dist, body)
+			otherBody.subsume(dist, b)
 		}
-	} else if (body.collisionBehavior == globals.Elastic || body.collisionBehavior == globals.Fragment) &&
+	} else if (b.collisionBehavior == globals.Elastic || b.collisionBehavior == globals.Fragment) &&
 		(otherBody.collisionBehavior == globals.Elastic || otherBody.collisionBehavior == globals.Fragment) {
-		r := body.calcElasticCollision(otherBody)
+		r := b.calcElasticCollision(otherBody)
 		if r.collided {
 			// todo defer handle unlock
-			if body.tryLock() {
+			if b.tryLock() {
 				otherLock := otherBody.tryLock()
-				if otherLock && body.exists && otherBody.exists {
-					fr := body.shouldFragment(otherBody, r)
+				if otherLock && b.exists && otherBody.exists {
+					fr := b.shouldFragment(otherBody, r)
 					if fr.shouldFragment {
-						body.doFragment(otherBody, fr)
+						b.doFragment(otherBody, fr)
 					} else {
-						body.doElastic(otherBody, r)
+						b.doElastic(otherBody, r)
 					}
 				}
 				defer func() {
 					if r := recover(); r != nil {
-						body.unLock()
+						b.unLock()
 						if otherLock {
 							otherBody.unLock()
 						}
 					}
 				}()
 			}
-			if body.collided {
+			if b.collided {
 				// TODO LOGGING
 			}
 		}
 	}
 }
 
-func (body *Body) doElastic(otherBody *Body, r CollisionCalcResult) {
-	body.vx = float32((r.vx1-r.vx_cm)*float64(R) + r.vx_cm)
-	body.vy = float32((r.vy1-r.vy_cm)*float64(R) + r.vy_cm)
-	body.vz = float32((r.vz1-r.vz_cm)*float64(R) + r.vz_cm)
-	otherBody.vx = float32((r.vx2-r.vx_cm)*float64(R) + r.vx_cm)
-	otherBody.vy = float32((r.vy2-r.vy_cm)*float64(R) + r.vy_cm)
-	otherBody.vz = float32((r.vz2-r.vz_cm)*float64(R) + r.vz_cm)
-	body.collided = true
+func (b *Body) doElastic(otherBody *Body, r CollisionCalcResult) {
+	b.vx = (r.vx1-r.vx_cm) * R + r.vx_cm
+	b.vy = (r.vy1-r.vy_cm) * R + r.vy_cm
+	b.vz = (r.vz1-r.vz_cm) * R + r.vz_cm
+	otherBody.vx = (r.vx2-r.vx_cm) * R + r.vx_cm
+	otherBody.vy = (r.vy2-r.vy_cm) * R + r.vy_cm
+	otherBody.vz = (r.vz2-r.vz_cm) * R + r.vz_cm
+	b.collided = true
 	otherBody.collided = true
 }
 
-func (body *Body) calcElasticCollision(otherBody *Body) CollisionCalcResult {
+func (b *Body) calcElasticCollision(otherBody *Body) CollisionCalcResult {
 	var r12, m21, d, v, theta2, phi2, st, ct, sp, cp, vx1r, vy1r, vz1r, fvz1r,
 	thetav, phiv, dr, alpha, beta, sbeta, cbeta, t, a, dvz2,
 	vx2r, vy2r, vz2r, x21, y21, z21, vx21, vy21, vz21, vx_cm, vy_cm, vz_cm float64
 
-	m1 := float64(body.mass)
-	m2 := float64(otherBody.mass)
-	r1 := float64(body.radius)
-	r2 := float64(otherBody.radius)
-	x1 := float64(body.x)
-	y1 := float64(body.y)
-	z1 := float64(body.z)
-	x2 := float64(otherBody.x)
-	y2 := float64(otherBody.y)
-	z2 := float64(otherBody.z)
-	vx1 := float64(body.vx)
-	vy1 := float64(body.vy)
-	vz1 := float64(body.vz)
-	vx2 := float64(otherBody.vx)
-	vy2 := float64(otherBody.vy)
-	vz2 := float64(otherBody.vz)
-	t = t // unused in source as well but keep as close to the source as possible
+	m1 := b.mass
+	m2 := otherBody.mass
+	r1 := b.radius
+	r2 := otherBody.radius
+	x1 := b.x
+	y1 := b.y
+	z1 := b.z
+	x2 := otherBody.x
+	y2 := otherBody.y
+	z2 := otherBody.z
+	vx1 := b.vx
+	vy1 := b.vy
+	vz1 := b.vz
+	vx2 := otherBody.vx
+	vy2 := otherBody.vy
+	vz2 := otherBody.vz
+	_ = t // unused in source as well but keep as close to the source as possible
 
 	r12 = r1 + r2
 	m21 = m2 / m1
@@ -472,94 +474,97 @@ func (body *Body) calcElasticCollision(otherBody *Body) CollisionCalcResult {
 		vx_cm, vy_cm, vz_cm)
 }
 
-func (body *Body) shouldFragment(otherBody *Body, r CollisionCalcResult) FragmentationCalcResult {
-	if !(body.collisionBehavior == globals.Fragment ||
+func (b *Body) shouldFragment(otherBody *Body, r CollisionCalcResult) FragmentationCalcResult {
+	if !(b.collisionBehavior == globals.Fragment ||
 		otherBody.collisionBehavior == globals.Fragment) {
 		return NoFragmentation()
 	}
-	vThis := body.vx + body.vy + body.vz
+	vThis := b.vx + b.vy + b.vz
 	dvThis :=
-		math32.Abs(body.vx-((float32(r.vx1-r.vx_cm))*R+float32(r.vx_cm))) +
-			math32.Abs(body.vy-((float32(r.vy1-r.vy_cm))*R+float32(r.vy_cm))) +
-			math32.Abs(body.vz-((float32(r.vz1-r.vz_cm))*R+float32(r.vz_cm)))
+		math.Abs(b.vx - ((r.vx1 - r.vx_cm) * R + r.vx_cm)) +
+		math.Abs(b.vy - ((r.vy1 - r.vy_cm) * R + r.vy_cm)) +
+		math.Abs(b.vz - ((r.vz1 - r.vz_cm) * R + r.vz_cm))
 
-	vThisFactor := dvThis / math32.Abs(vThis)
+	vThisFactor := dvThis / math.Abs(vThis)
 	vOther := otherBody.vx + otherBody.vy + otherBody.vz
 	dvOther :=
-		math32.Abs(otherBody.vx-((float32(r.vx2-r.vx_cm))*R+float32(r.vx_cm))) +
-			math32.Abs(otherBody.vy-((float32(r.vy2-r.vy_cm))*R+float32(r.vy_cm))) +
-			math32.Abs(otherBody.vz-((float32(r.vz2-r.vz_cm))*R+float32(r.vz_cm)))
+		math.Abs(otherBody.vx - ((r.vx2-r.vx_cm) * R + r.vx_cm)) +
+		math.Abs(otherBody.vy - ((r.vy2-r.vy_cm) * R + r.vy_cm)) +
+		math.Abs(otherBody.vz - ((r.vz2-r.vz_cm) * R + r.vz_cm))
 
-	vOtherFactor := dvOther / math32.Abs(vOther)
+	vOtherFactor := dvOther / math.Abs(vOther)
 
-	if body.collisionBehavior == globals.Fragment && vThisFactor > body.fragFactor ||
+	if b.collisionBehavior == globals.Fragment && vThisFactor > b.fragFactor ||
 		otherBody.collisionBehavior == globals.Fragment && vOtherFactor > otherBody.fragFactor {
 		return Fragmentation(vThisFactor, vOtherFactor)
 	}
 	return NoFragmentation()
 }
 
-func (body *Body) doFragment(otherBody *Body, fr FragmentationCalcResult) {
-	if body.collisionBehavior == globals.Fragment && fr.thisFactor > body.fragFactor {
-		body.initiateFragmentation(fr.thisFactor)
+func (b *Body) doFragment(otherBody *Body, fr FragmentationCalcResult) {
+	if b.collisionBehavior == globals.Fragment && fr.thisFactor > b.fragFactor {
+		b.initiateFragmentation(fr.thisFactor)
 	}
 	if otherBody.collisionBehavior == globals.Fragment && fr.otherFactor > otherBody.fragFactor {
 		otherBody.initiateFragmentation(fr.otherFactor)
 	}
 }
 
-func (body *Body) initiateFragmentation(fragFactor float32) {
-	var fragDelta float32
-	if body.fragFactor > 10 {
+func (b *Body) initiateFragmentation(fragFactor float64) {
+	var fragDelta float64
+	if b.fragFactor > 10 {
 		fragDelta = 10
 	} else {
-		fragDelta = fragFactor - body.fragFactor
+		fragDelta = fragFactor - b.fragFactor
 	}
-	fragments := math32.Min(fragDelta*body.fragmentationStep, maxFrags)
+	fragments := math.Min(fragDelta*b.fragmentationStep, maxFrags)
 	if fragments <= 1 {
-		body.collisionBehavior = globals.Fragment
+		b.collisionBehavior = globals.Fragment
 		return
 	}
-	body.fragmenting = true
-	curPos := math32.Vector3{body.x, body.y, body.z}
-	volume := fourThirdsPi * body.radius * body.radius * body.radius
-	newRadius := math32.Max(math32.Pow(((volume/fragments)*3)/fourPi, 1/3), .1)
-	newMass := body.mass / fragments
-	body.fragInfo = FragInfo{body.radius, newRadius, newMass, int(fragments), curPos}
+	b.fragmenting = true
+	curPos := util.Vector3{b.x, b.y, b.z}
+	volume := fourThirdsPi * b.radius * b.radius * b.radius
+	newRadius := math.Max(math.Pow(((volume/fragments)*3) / fourPi, 1/3), .1)
+	newMass := b.mass / fragments
+	b.fragInfo = FragInfo{b.radius, newRadius, newMass, int(fragments), curPos}
 }
 
-func (body *Body) fragment(bodyQueue *cmap.ConcurrentMap) {
+func (b *Body) fragment(cc interfaces.SimBodyCollection) {
 	cnt := 0
-	for ; body.fragInfo.fragments > 0; {
-		body.fragInfo.fragments--
-		v := getVectorEven(body.fragInfo.curPos, body.fragInfo.radius*.9)
-		bodyQueue.Set(nextId(), Body{
+	for ; b.fragInfo.fragments > 0; {
+		b.fragInfo.fragments--
+		v := util.GetVectorEven(b.fragInfo.curPos, b.fragInfo.radius * .9)
+		toAdd := &Body{
 			id: nextId(),
-			x:  v.X, y: v.Y, z: v.Z, vx: body.vx, vy: body.vy, vz: body.vz, mass: body.fragInfo.mass, radius: body.fragInfo.newRadius,
-			collisionBehavior: globals.Elastic, bodyColor: body.bodyColor, fragFactor: 0, fragmentationStep: 0,
-			withTelemetry: false, name: body.name, class: body.class, pinned: false,
-		})
+			x:  v.X, y: v.Y, z: v.Z, vx: b.vx, vy: b.vy, vz: b.vz, mass: b.fragInfo.mass, radius: b.fragInfo.newRadius,
+			collisionBehavior: globals.Elastic, bodyColor: b.bodyColor, fragFactor: 0, fragmentationStep: 0,
+			withTelemetry: false, name: b.name, class: b.class, pinned: false,
+		}
+		cc.Add(toAdd)
 		cnt++
 		if cnt > maxFragsPerCycle {
 			break
 		}
 	}
-	if body.fragInfo.fragments <= 0 {
+	if b.fragInfo.fragments <= 0 {
 		// turn this instance into a fragment
-		body.mass = body.fragInfo.mass
-		body.radius = body.fragInfo.newRadius
-		body.collisionBehavior = globals.Elastic
-		body.fragmenting = false
+		b.mass = b.fragInfo.mass
+		b.radius = b.fragInfo.newRadius // TODO DON'T KNOW HOW TO CHANGE RADIUS IN G3N
+		b.collisionBehavior = globals.Elastic
+		b.fragmenting = false
 	} else {
-		// shrink the body a little each time
-		body.radius = body.radius * .9
+		// shrink the b a little each time
+		b.radius = b.radius * .9
 	}
 }
 
 var idGenerator = struct {
 	lock sync.Mutex
 	id   int
-}{sync.Mutex{}, 0,}
+}{
+	sync.Mutex{}, 0,
+}
 
 func nextId() (id int) {
 	idGenerator.lock.Lock()
@@ -569,7 +574,7 @@ func nextId() (id int) {
 	return
 }
 
-func (body *Body) setNotExists() {
-	body.mass = 0
-	body.exists = false
+func (b *Body) setNotExists() {
+	b.mass = 0
+	b.exists = false
 }

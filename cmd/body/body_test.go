@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"nbodygo/cmd/cmap"
 	"nbodygo/cmd/globals"
+	"nbodygo/cmd/interfaces"
 	"nbodygo/cmd/util"
 	"nbodygo/internal/pkg/math32"
 	"testing"
@@ -103,7 +104,7 @@ func TestBodyForceCalcDirect(t *testing.T) {
 		b.x = v.X
 		b.y = v.Y
 		b.z = v.Z
-		b.mass *= 1 + float32(rand.Int31n(3))
+		b.mass *= 1 + float64(rand.Int31n(3))
 		bodies[i] = b
 	}
 	for _, bodyOuter := range bodies {
@@ -148,11 +149,11 @@ func TestBodyForceComputer(t *testing.T) {
 	go func() {
 		for {
 			for item := range bodyQueue.IterBuffered() {
-				b := item.Val.(SimBody) // no pointer
+				b := item.Val.(interfaces.SimBody) // no pointer
 				b.ForceComputer(&bodyQueue)
 			}
 			for item := range bodyQueue.IterBuffered() {
-				b := item.Val.(SimBody) // no pointer
+				b := item.Val.(interfaces.SimBody) // no pointer
 				b.Update(.000000001)
 			}
 			computations++

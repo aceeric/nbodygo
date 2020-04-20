@@ -1,11 +1,11 @@
 package body
 
-import "nbodygo/internal/pkg/math32"
+import (
+	"nbodygo/cmd/util"
+)
 
 type FragInfo struct {
-	radius float32
-	newRadius float32
-	mass float32
+	radius, newRadius, mass float64
 	fragments int
-	curPos math32.Vector3
+	curPos util.Vector3
 }

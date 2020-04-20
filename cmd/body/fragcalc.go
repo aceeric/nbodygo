@@ -2,8 +2,8 @@ package body
 
 type FragmentationCalcResult struct {
 	shouldFragment bool
-	thisFactor float32
-	otherFactor float32
+	thisFactor float64
+	otherFactor float64
 }
 
 func NoFragmentation() FragmentationCalcResult {
@@ -12,7 +12,7 @@ func NoFragmentation() FragmentationCalcResult {
 	}
 }
 
-func Fragmentation(thisFactor float32, otherFactor float32) FragmentationCalcResult {
+func Fragmentation(thisFactor float64, otherFactor float64) FragmentationCalcResult {
 	return FragmentationCalcResult {
 		true, thisFactor, otherFactor,
 	}

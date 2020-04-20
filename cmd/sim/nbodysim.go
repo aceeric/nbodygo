@@ -1,9 +1,9 @@
 package sim
 
 import (
-	"nbodygo/cmd/body"
-	"nbodygo/cmd/cmap"
+	"nbodygo/cmd/collection"
 	"nbodygo/cmd/g3napp"
+	"nbodygo/cmd/interfaces"
 	"nbodygo/cmd/runner"
 	"nbodygo/internal/pkg/math32"
 	"time"
@@ -15,7 +15,7 @@ const (
 
 	// If no rendering, then the amount of time to sleep between polling the result queue. Goal is the
 	// ensure the computation runner is running at full throttle
-	noRenderSleepMs = 5
+	noRenderSleepMs = 500 // TODO PUT BACK
 
 	// a default scaling factor if an override is not provided
 	defaultTimeScaling = .000000001
@@ -26,13 +26,13 @@ const (
 
 type NBodySim struct {
 	// A list of bodies to start the simulation with
-	bodies []body.Body
+	bodies []interfaces.SimBody
 
 	// The number of threads to use for the computation runner
 	threads int
 
 	// The time scaling factor, which speeds or slows the sim
-	scaling float32
+	scaling float64
 
 	// The initial camera position
 	initialCam math32.Vector3
@@ -40,7 +40,7 @@ type NBodySim struct {
 	// If not null, then the sim runner will call the function after the sim is started.
 	// The function is expected to then modify the body queue while the sim is running and exit when
 	// it is done
-	simThread func(*cmap.ConcurrentMap) // TODO RENAME
+	simThread func(cc interfaces.SimBodyCollection) // TODO RENAME GOROUTINE OR SOMETHING
 
 	// If false, then don't start the rendering engine. Useful for testing/debugging since the
 	// rendering engine and OpenGL can interfere with single-stepping in the IDE
@@ -53,48 +53,46 @@ type NBodySim struct {
 
 func (sim NBodySim) Run() {
 	// TODO start instrumentation
-	bodyQueue := cmap.New()
-	// TODO REEVAL ALL TESTS TO ENSURE THIS ASSIGNMENT IS WORKING!
-	for i := 0; i < len(sim.bodies); i++ {
-		bodyQueue.Set(sim.bodies[i].Id(), &sim.bodies[i])
-	}
+	bodyQueue := collection.NewSimBodyCollection(sim.bodies)
 	rqh := runner.NewResultQueueHolder(defaultMaxResultQueues)
 	// used to gracefully shut down the G3N engine
 	simDone := make(chan bool)
+	//sim.render = false
 	if sim.render {
-		g3napp.StartG3nApp(sim.initialCam, sim.resolution[0], sim.resolution[1], rqh, simDone)
+		g3napp.StartG3nApp(&sim.initialCam, sim.resolution[0], sim.resolution[1], rqh, simDone)
 	}
-	runner.StartComputationRunner(sim.threads, &bodyQueue, sim.scaling, rqh)
+	cr := runner.NewComputationRunner(sim.threads, sim.scaling, rqh, bodyQueue).Start()
 	// TODO start gRPC server
 	if sim.simThread != nil {
-		go sim.simThread(&bodyQueue) // TODO needs a channel to close
+		go sim.simThread(bodyQueue) // TODO needs a channel to close
 	}
 	waitForSimEnd(sim.render, &rqh, simDone)
 	// TODO signal simThread if it is running
 	// TODO stop gRPC server
-	runner.StopComputationRunner()
+	cr.Stop()
 	// TODO stop instrumentation
 }
 
 func waitForSimEnd(render bool, rqh *runner.ResultQueueHolder, simDone chan bool) {
 	if render {
-		// wait for the user to press ESC which shuts down the G3N
+		// wait for the user to press ESC which shuts down the G3N and then signals the simDone channel
 		<-simDone
 	} else {
 		for {
 			// TODO need a way to get out of this?
-			rqh.NextComputedQueue()
+			rq, ok := rqh.NextComputedQueue()
+			_ = rq; _ = ok
 			time.Sleep(noRenderSleepMs)
 		}
 	}
 }
 
 type NBodySimBuilder interface {
-	Bodies([]body.Body) NBodySimBuilder
+	Bodies([]interfaces.SimBody) NBodySimBuilder
 	Threads(int) NBodySimBuilder
-	Scaling(float32) NBodySimBuilder
+	Scaling(float64) NBodySimBuilder
 	InitialCam(math32.Vector3) NBodySimBuilder
-	SimThread(func(*cmap.ConcurrentMap)) NBodySimBuilder
+	SimThread(func(interfaces.SimBodyCollection)) NBodySimBuilder
 	Render(bool) NBodySimBuilder
 	Resolution([2]int) NBodySimBuilder
 	VSync(bool) NBodySimBuilder
@@ -103,18 +101,18 @@ type NBodySimBuilder interface {
 }
 
 type nBodySimBuilder struct {
-	bodies     []body.Body
+	bodies     []interfaces.SimBody
 	threads    int
-	scaling    float32
+	scaling    float64
 	initialCam math32.Vector3
-	simThread  func(*cmap.ConcurrentMap)
+	simThread  func(interfaces.SimBodyCollection)
 	render     bool
 	resolution [2]int
 	vSync      bool
 	frameRate  int
 }
 
-func (b nBodySimBuilder) Bodies(bodies []body.Body) NBodySimBuilder {
+func (b nBodySimBuilder) Bodies(bodies []interfaces.SimBody) NBodySimBuilder {
 	b.bodies = bodies
 	return b
 }
@@ -123,7 +121,7 @@ func (b nBodySimBuilder) Threads(threads int) NBodySimBuilder {
 	return b
 }
 
-func (b nBodySimBuilder) Scaling(scaling float32) NBodySimBuilder {
+func (b nBodySimBuilder) Scaling(scaling float64) NBodySimBuilder {
 	b.scaling = scaling
 	return b
 }
@@ -133,7 +131,7 @@ func (b nBodySimBuilder) InitialCam(initialCam math32.Vector3) NBodySimBuilder {
 	return b
 }
 
-func (b nBodySimBuilder) SimThread(simThread func(*cmap.ConcurrentMap)) NBodySimBuilder {
+func (b nBodySimBuilder) SimThread(simThread func(interfaces.SimBodyCollection)) NBodySimBuilder {
 	b.simThread = simThread
 	return b
 }
@@ -177,7 +175,7 @@ func newNBodySim(b nBodySimBuilder) NBodySim {
 func NewNBodySimBuilder() NBodySimBuilder {
 	// initialize a builder with reasonable defaults in case overrides are not provided
 	b := nBodySimBuilder{
-		bodies:     []body.Body{}, // no bodies
+		bodies:     []interfaces.SimBody{}, // no bodies
 		threads:    defaultThreads,
 		scaling:    defaultTimeScaling,
 		initialCam: *math32.NewVector3(100, 100, 100),

@@ -1,53 +1,49 @@
 package bodyrender
 
-import "nbodygo/cmd/globals"
+import (
+	"nbodygo/cmd/globals"
+	"nbodygo/cmd/interfaces"
+)
 
-type BodyRenderInfo struct {
+type bodyRenderInfo struct {
 	id int
 	exists bool
-	x, y, z, radius float32
+	x, y, z, radius float64
 	isSun bool
 	bodyColor globals.BodyColor
 }
 
-type Renderable interface {
-	Id() int
-	Exists() bool
-	X() float32
-	Y() float32
-	Z() float32
-	Radius() float32
-	IsSun() bool
-	BodyColor() globals.BodyColor
-}
-
 // implementation of Renderable interface
 
-func (r BodyRenderInfo) Id() int {return r.id}
-func (r BodyRenderInfo) Exists() bool {return r.exists}
-func (r BodyRenderInfo) X() float32 {return r.x}
-func (r BodyRenderInfo) Y() float32 {return r.y}
-func (r BodyRenderInfo) Z() float32 {return r.z}
-func (r BodyRenderInfo) Radius() float32 {return r.radius}
-func (r BodyRenderInfo) IsSun() bool {return r.isSun}
-func (r BodyRenderInfo) BodyColor() globals.BodyColor {return r.bodyColor}
+func (r bodyRenderInfo) Id() int                      {return r.id}
+func (r bodyRenderInfo) Exists() bool                 {return r.exists}
+func (r bodyRenderInfo) X() float64                   {return r.x}
+func (r bodyRenderInfo) Y() float64                   {return r.y}
+func (r bodyRenderInfo) Z() float64                   {return r.z}
+func (r bodyRenderInfo) X32() float32                 {return float32(r.x)}
+func (r bodyRenderInfo) Y32() float32                 {return float32(r.y)}
+func (r bodyRenderInfo) Z32() float32                 {return float32(r.z)}
+func (r bodyRenderInfo) Radius() float64              {return r.radius}
+func (r bodyRenderInfo) Radius32() float32            {return float32(r.radius)}
+func (r bodyRenderInfo) IsSun() bool                  {return r.isSun}
+func (r bodyRenderInfo) BodyColor() globals.BodyColor {return r.bodyColor}
 
-func NewFromRenderable(r Renderable) Renderable {
+func NewFromRenderable(r interfaces.Renderable) interfaces.Renderable {
 	if !r.Exists() {
-		return BodyRenderInfo{
+		return bodyRenderInfo{
 			id: r.Id(),
 			exists: false,
 		}
 	}
-	return BodyRenderInfo{
+	return bodyRenderInfo{
 		id: r.Id(),
 		exists: r.Exists(),
 		x: r.X(), y: r.Y(), z: r.Z(), radius: r.Radius(), isSun: r.IsSun(), bodyColor:r.BodyColor(),
 	}
 }
 
-func New(id int, exists bool, x, y, z, radius float32, isSun bool, bodyColor globals.BodyColor) Renderable {
-	return BodyRenderInfo{
+func New(id int, exists bool, x, y, z, radius float64, isSun bool, bodyColor globals.BodyColor) interfaces.Renderable {
+	return bodyRenderInfo{
 		id:        id,
 		exists:    exists,
 		x:         x,
@@ -59,8 +55,8 @@ func New(id int, exists bool, x, y, z, radius float32, isSun bool, bodyColor glo
 	}
 }
 
-func NewEmpty() Renderable {
-	return BodyRenderInfo{
+func NewEmpty() interfaces.Renderable {
+	return bodyRenderInfo{
 		id:        0,
 		exists:    true,
 		x:         0,
