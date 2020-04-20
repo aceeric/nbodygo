@@ -6,17 +6,49 @@ import (
 	"nbodygo/cmd/globals"
 	"nbodygo/cmd/interfaces"
 	"nbodygo/cmd/util"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 )
 
+type GeneratorFunc = func(int, globals.CollisionBehavior, globals.BodyColor, string) (
+	[]interfaces.SimBody, func(interfaces.SimBodyCollection))
+
+type WorkerFunc = func(interfaces.SimBodyCollection)
+
+type Generator interface {}
+type generator struct {}
 const (
 	solarMass = 1.98892e30
 )
 
-func Sim1(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) []interfaces.SimBody { // TODO RETURN A SIM INTERFACE
+var Instance Generator = generator{}
+
+func Generate(simName string, bodyCount int, collisionBehavior globals.CollisionBehavior,
+	defaultBodyColor globals.BodyColor, simArgs string) ([]interfaces.SimBody, WorkerFunc) {
+	value := reflect.ValueOf(Instance)
+	ptr := reflect.New(reflect.TypeOf(Instance))
+	temp := ptr.Elem()
+	temp.Set(value)
+	method := value.MethodByName(simName)
+	if !method.IsValid() {
+		return nil, nil
+	}
+	params := []reflect.Value{
+		reflect.ValueOf(bodyCount),
+		reflect.ValueOf(collisionBehavior),
+		reflect.ValueOf(defaultBodyColor),
+		reflect.ValueOf(simArgs),
+	}
+	retVals := method.Call(params)
+	bodies := retVals[0].Interface().([]interfaces.SimBody)
+	workerFunc := retVals[1].Interface().(WorkerFunc)
+	return bodies, workerFunc
+}
+
+func (g generator) Sim1(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
+	simArgs string) ([]interfaces.SimBody, WorkerFunc) {
 	var parsedSimArgs []string
 	clumpRadius := float64(30)
 	dist := float64(200)
@@ -27,11 +59,11 @@ func Sim1(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBod
 	}
 	if len(parsedSimArgs) > 0 {
 		z, _ := strconv.ParseFloat(parsedSimArgs[0], 32)
-		clumpRadius = float64(z)
+		clumpRadius = z
 	}
 	if len(parsedSimArgs) > 1 {
 		z, _ := strconv.ParseFloat(parsedSimArgs[1], 32)
-		dist = float64(z)
+		dist = z
 	}
 	var bodies []interfaces.SimBody
 	id := 0
@@ -57,8 +89,8 @@ func Sim1(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBod
 				} else {
 					radius = 3 * f
 				}
-				mass = radius * solarMass * .000005;
-				v := util.GetVectorEven(*util.NewVector3(xc, y, zc), clumpRadius);
+				mass = radius * solarMass * .000005
+				v := util.GetVectorEven(*util.NewVector3(xc, y, zc), clumpRadius)
 				b := body.NewBody(id, v.X, v.Y, v.Z, vx, vy, vz, mass, radius, collisionBehavior,
 					color, 0, 0, false, "", "",false)
 				bodies = append(bodies, &b)
@@ -66,10 +98,22 @@ func Sim1(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBod
 			}
 		}
 	}
-	bodies = createSunAndAddToList(bodies, id, 0, 0, 0, 25 * solarMass * .11, 35)
-	return bodies
+	return createSunAndAddToList(bodies, id, 0, 0, 0, 25 * solarMass * .11, 35), nil
 }
 
+//
+// Creates a sun body with larger mass, very low (non-zero) velocity, placed at 0, 0, 0 and
+// places it into the passed body list. Sun bodies are light sources. Each sim needs at least one light
+// source.
+//
+// args:
+//   bodies            - array of bodies to add the sun into
+//   id                - if of the sun
+//   x,y,z,mass,radius - core body properties
+//
+// returns:
+//   the passed array with the sun appended
+//
 func createSunAndAddToList(bodies []interfaces.SimBody, id int, x, y, z, mass, radius float64) []interfaces.SimBody {
 	b := body.NewBody(id, x, y, z, -3, -3, -5, mass, radius, globals.Subsume,
 		globals.White, 0, 0, false, "the-sun", "",false)

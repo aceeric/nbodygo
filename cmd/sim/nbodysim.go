@@ -40,7 +40,7 @@ type NBodySim struct {
 	// If not null, then the sim runner will call the function after the sim is started.
 	// The function is expected to then modify the body queue while the sim is running and exit when
 	// it is done
-	simThread func(cc interfaces.SimBodyCollection) // TODO RENAME GOROUTINE OR SOMETHING
+	simThread WorkerFunc // TODO RENAME GOROUTINE OR SOMETHING
 
 	// If false, then don't start the rendering engine. Useful for testing/debugging since the
 	// rendering engine and OpenGL can interfere with single-stepping in the IDE
@@ -64,13 +64,14 @@ func (sim NBodySim) Run() {
 	cr := runner.NewComputationRunner(sim.threads, sim.scaling, rqh, bodyQueue).Start()
 	// TODO start gRPC server
 	if sim.simThread != nil {
-		go sim.simThread(bodyQueue) // TODO needs a channel to close
+		go sim.simThread(bodyQueue) // TODO needs a channel to close??
 	}
 	waitForSimEnd(sim.render, &rqh, simDone)
 	// TODO signal simThread if it is running
 	// TODO stop gRPC server
 	cr.Stop()
 	// TODO stop instrumentation
+	cr.PrintStats()
 }
 
 func waitForSimEnd(render bool, rqh *runner.ResultQueueHolder, simDone chan bool) {
@@ -92,7 +93,7 @@ type NBodySimBuilder interface {
 	Threads(int) NBodySimBuilder
 	Scaling(float64) NBodySimBuilder
 	InitialCam(math32.Vector3) NBodySimBuilder
-	SimThread(func(interfaces.SimBodyCollection)) NBodySimBuilder
+	SimThread(WorkerFunc) NBodySimBuilder
 	Render(bool) NBodySimBuilder
 	Resolution([2]int) NBodySimBuilder
 	VSync(bool) NBodySimBuilder
@@ -105,7 +106,7 @@ type nBodySimBuilder struct {
 	threads    int
 	scaling    float64
 	initialCam math32.Vector3
-	simThread  func(interfaces.SimBodyCollection)
+	simThread  WorkerFunc
 	render     bool
 	resolution [2]int
 	vSync      bool
@@ -131,7 +132,7 @@ func (b nBodySimBuilder) InitialCam(initialCam math32.Vector3) NBodySimBuilder {
 	return b
 }
 
-func (b nBodySimBuilder) SimThread(simThread func(interfaces.SimBodyCollection)) NBodySimBuilder {
+func (b nBodySimBuilder) SimThread(simThread WorkerFunc) NBodySimBuilder {
 	b.simThread = simThread
 	return b
 }
