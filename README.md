@@ -16,20 +16,13 @@ go build -o $(pwd) ./...
 
 TODO
 
-
-### body queue
-- initial population
-- removal by comp runner as bodies set !exists
-- addition by gRPC
-- addition by fragmentation
-
-
-
-sim
-- performance - currently horrible
-- g3n coordinate system reversed vs. JME?
-- main -- arg parse, etc
-- simgen (only one sim for starters)
-- get Bazel working
+- https://developers.google.com/protocol-buffers/docs/reference/go-generated
+- gRPC client
+- metrics
+- Bazel
+- logging
+- id generator
+- tests
 - make the code idiomatic
+- todos
 - etc..

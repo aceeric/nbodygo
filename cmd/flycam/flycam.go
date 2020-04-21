@@ -10,42 +10,60 @@ import (
 
 type CamValue float32
 
-const (
-	DefaultYaw           CamValue = -90.0
-	DefaultPitch         CamValue = 0.0
-	DefaultMovementSpeed CamValue = 1
-	MouseSensitivity     CamValue = 0.1
-)
-
+//
+// fly cam state
+//
 type FlyCam struct {
-	glfwWindow    *window.GlfwWindow
-	cam           *camera.Camera
-	position      math32.Vector3
-	front         math32.Vector3
-	up            math32.Vector3
-	right         math32.Vector3
-	lookAt        math32.Vector3
-	worldUp       math32.Vector3
-	captureInput  bool
-	lastMouseX    float32
-	lastMouseY    float32
+	// pointer to the glfw window managed by g3n
+	glfwWindow *window.GlfwWindow
+	// pointer to the camera managed by g3n
+	cam *camera.Camera
+	// current position and directional vectors
+	position math32.Vector3
+	front    math32.Vector3
+	up       math32.Vector3
+	right    math32.Vector3
+	lookAt   math32.Vector3
+	worldUp  math32.Vector3
+	// true if keyboard/mouse bound to the sim window, else false
+	captureInput bool
+	// used to interpret mouse event stream
+	lastMouseX float32
+	lastMouseY float32
+	// continuously updated in response to mouse/keyboard events
 	yaw           CamValue
 	pitch         CamValue
 	movementSpeed CamValue
 }
 
 const (
-	True             = 1
-	False            = 0
-	FlyCamId         = 1234567
-	EngageDisengage  = 2345678
-	NoLastMousePos   = -1
-	FrustrumFar      = 10000 // TODO consider 400000
+	True                          = 1
+	False                         = 0
+	FlyCamId                      = 1234567
+	EngageDisengage               = 2345678
+	NoLastMousePos                = -1
+	FrustrumFar                   = 10000 // TODO consider 400000
+	DefaultYaw           CamValue = -90.0
+	DefaultPitch         CamValue = 0.0
+	DefaultMovementSpeed CamValue = 1
+	MouseSensitivity     CamValue = 0.1
 )
 
 // singleton
 var flyCam FlyCam
 
+//
+// Creates the fly cam
+//
+// args:
+//   glfwWindow      managed by g3n
+//   scene           managed by g3n
+//   width,height    screen dimensions
+//   initialPosition initial position of the camera
+//
+// returns:
+//   pointer to fly cam
+//
 func NewFlyCam(glfwWindow *window.GlfwWindow, scene *core.Node, width int, height int, initialPosition math32.Vector3) *FlyCam {
 	if flyCam.glfwWindow != nil {
 		panic("Cannot call NewFlyCam twice")
@@ -63,7 +81,7 @@ func NewFlyCam(glfwWindow *window.GlfwWindow, scene *core.Node, width int, heigh
 		*math32.NewVector3(0, 0, 0),
 		*math32.NewVector3(0, 1, 0),
 		true,
-		NoLastMousePos,NoLastMousePos,
+		NoLastMousePos, NoLastMousePos,
 		DefaultYaw,
 		DefaultPitch,
 		DefaultMovementSpeed,
@@ -73,11 +91,17 @@ func NewFlyCam(glfwWindow *window.GlfwWindow, scene *core.Node, width int, heigh
 	flyCam.cam.SetAspect(float32(width) / float32(height))
 	flyCam.cam.SetFar(FrustrumFar)
 	scene.Add(flyCam.cam)
-	engageCtrls(true)
+	engage(true)
 	return &flyCam
 }
 
-func engageCtrls(all bool) {
+//
+// Attaches mouse/keyboard to the sim window
+//
+// args:
+//   all True if F12 should be engaged (only pass true the first time)
+//
+func engage(all bool) {
 	glfwWindow := flyCam.glfwWindow
 	glfwWindow.SubscribeID(window.OnKeyUp, FlyCamId, handleEsc)
 	if all {
@@ -92,14 +116,19 @@ func engageCtrls(all bool) {
 	w.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
 }
 
+//
 // returns the lower level g3n camera wrapped by the fly cam
+//
 func (flyCam FlyCam) Cam() *camera.Camera {
 	return flyCam.cam
 }
 
-// don't unsubscribe handleF12 - it's always active because even when the controls are disengaged we need
+//
+// Disengages the mouse/keyboard from the sim window. Doesn't unsubscribe the F12 handler- that
+// one is always active because even when the controls are disengaged we need
 // the F12 handler to allow us to re-engage
-func disengageCtrls() {
+//
+func disengage() {
 	glfwWindow := flyCam.glfwWindow
 	glfwWindow.UnsubscribeID(window.OnKeyUp, FlyCamId)
 	glfwWindow.UnsubscribeID(window.OnKeyRepeat, FlyCamId)
@@ -110,6 +139,9 @@ func disengageCtrls() {
 	w.SetInputMode(glfw.CursorMode, glfw.CursorNormal)
 }
 
+//
+// Keyboard event handler
+//
 func handleKey(event string, ev interface{}) {
 	var key window.Key
 	switch kev := ev.(type) {
@@ -120,14 +152,22 @@ func handleKey(event string, ev interface{}) {
 		return
 	}
 	switch key {
-	case window.KeyW: handleMvFwd()
-	case window.KeyA: handleStrafeLft()
-	case window.KeyS: handleMvBck()
-	case window.KeyD: handleStrafeRt()
-	case window.KeyQ: handleStrafeUp()
-	case window.KeyZ: handleStrafeDn()
-	case window.KeyKPAdd: handleKeypadPlus()
-	case window.KeyKPSubtract: handleKeypadMinus()
+	case window.KeyW:
+		handleMvFwd()
+	case window.KeyA:
+		handleStrafeLft()
+	case window.KeyS:
+		handleMvBck()
+	case window.KeyD:
+		handleStrafeRt()
+	case window.KeyQ:
+		handleStrafeUp()
+	case window.KeyZ:
+		handleStrafeDn()
+	case window.KeyKPAdd:
+		handleKeypadPlus()
+	case window.KeyKPSubtract:
+		handleKeypadMinus()
 	}
 }
 
@@ -166,8 +206,11 @@ func handleStrafeDn() {
 	updateView()
 }
 
-// oddly, G3N engine *decreases* y position as the mouse goes *up*, so negate the value from G3N
-// so that mouse up increases Y for consistency
+//
+// Mouse event handler. Oddly, G3N engine *decreases* y position as the mouse goes *up*,
+// so negate the value from G3N so that mouse up increases Y for consistency (X increases
+// right, so...)
+//
 func handleMouseLook(event string, ev interface{}) {
 	var xPos, yPos float32
 	switch cev := ev.(type) {
@@ -197,39 +240,56 @@ func handleKeypadPlus() {
 }
 
 func handleKeypadMinus() {
-	if flyCam.movementSpeed > 2 {flyCam.movementSpeed -= 1}
+	if flyCam.movementSpeed > 2 {
+		flyCam.movementSpeed -= 1
+	}
 }
 
-// engage/disengage the controls from the window
+//
+// Engages/Disengages the controls from the window
+//
 func handleF12(event string, ev interface{}) {
 	var key window.Key
 	switch kev := ev.(type) {
-	case window.KeyEvent:  key = kev.Key
-	case *window.KeyEvent: key = kev.Key
-	default:               return
+	case window.KeyEvent:
+		key = kev.Key
+	case *window.KeyEvent:
+		key = kev.Key
+	default:
+		return
 	}
 	if key == window.KeyF12 {
 		if flyCam.captureInput {
-			disengageCtrls()
+			disengage()
 		} else {
-			engageCtrls(false)
+			engage(false)
 		}
 		flyCam.captureInput = !flyCam.captureInput
 	}
 }
 
+//
+// Communicates to the G3N engine to exit
+//
 func handleEsc(event string, ev interface{}) {
 	var key window.Key
 	switch kev := ev.(type) {
-	case window.KeyEvent:  key = kev.Key
-	case *window.KeyEvent: key = kev.Key
-	default:               return
+	case window.KeyEvent:
+		key = kev.Key
+	case *window.KeyEvent:
+		key = kev.Key
+	default:
+		return
 	}
 	if key == window.KeyEscape {
 		flyCam.glfwWindow.SetShouldClose(true)
 	}
 }
 
+//
+// Implements the fly camera. This function modeled after code
+// from https://github.com/JoeyDeVries/LearnOpenGL
+//
 func updateCamVectors() {
 	front := math32.Vector3{}
 	front.X = math32.Cos(math32.DegToRad(float32(flyCam.yaw))) * math32.Cos(math32.DegToRad(float32(flyCam.pitch)))

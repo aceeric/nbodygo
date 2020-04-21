@@ -28,7 +28,7 @@ func TestG3nApp(t *testing.T) {
 	const framesPerSecond = 16
 	StartG3nApp(2560, 1440, rqh, simDone)
 	for i := 0; i < 5000/framesPerSecond; i++ {
-		rq, _ := rqh.NewQueue(1)
+		rq, _ := rqh.NewResultQueue(1)
 		rq.AddRenderable(bodyrender.New(1, true, float32(-i)*.1, 0, 0, 5, false, globals.Green))
 		rq.AddRenderable(bodyrender.New(2, true, 20, 20+(float32(-i)*.1), 20, 5, true, 0))
 		rq.SetComputed()

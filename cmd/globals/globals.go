@@ -1,6 +1,10 @@
 package globals
 
-import "strings"
+import (
+	"nbodygo/internal/pkg/math32"
+	"strconv"
+	"strings"
+)
 
 type CollisionBehavior int
 
@@ -49,7 +53,7 @@ func parseBoolean(s string) bool {
 	return false
 }
 
-func parseColor(s string) BodyColor {
+func ParseBodyColor(s string) BodyColor {
 	for i, item := range []string{"random", "black", "white", "darkgray", "gray", "lightgray", "red",
 		"green", "blue", "yellow", "magenta", "cyan", "orange", "brown", "pink"} {
 		if item == strings.ToLower(s) {
@@ -57,4 +61,17 @@ func parseColor(s string) BodyColor {
 		}
 	}
 	return Random
+}
+
+func ParseVector(s string) *math32.Vector3 {
+	components := strings.Split(s, ",")
+	if len(components) != 3 {
+		return &math32.Vector3{}
+	}
+	x, _ := strconv.ParseFloat(components[0], 32)
+	y, _ := strconv.ParseFloat(components[1], 32)
+	z, _ := strconv.ParseFloat(components[2], 32)
+	return &math32.Vector3{
+		X: float32(x), Y: float32(y), Z: float32(z),
+	}
 }

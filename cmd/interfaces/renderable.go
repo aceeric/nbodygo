@@ -2,6 +2,9 @@ package interfaces
 
 import "nbodygo/cmd/globals"
 
+//
+// Interface contract for a body to be able to be rendered into the scene graph
+//
 type Renderable interface {
 	Id() int
 	Exists() bool
@@ -14,6 +17,7 @@ type Renderable interface {
 	Z32() float32
 	Radius32() float32
 	IsSun() bool
+	Intensity() float32
 	BodyColor() globals.BodyColor
 }
 

@@ -7,24 +7,39 @@ import (
 	"time"
 )
 
+//
+// Computation runner state
+//
 type ComputationRunner struct {
-	stop                     chan bool
-	workerCnt                int
+	// stops the  runner
+	stop chan bool
+	// number of workers to create in the worker pool
+	workerCnt int
+	// metrics
 	iterations, computations uint
 	submits, waits           uint
 	submitMillis             int64
 	waitMillis               int64
-	wp                       *WorkPool
-	cc                       interfaces.SimBodyCollection
-	maxIteration             int
-	running                  bool
 	startTime                time.Time
 	stopTime                 time.Time
 	goroutines               int
-	timeScaling              float64
-	resultQueueHolder        ResultQueueHolder
+	// the work pool
+	wp *WorkPool
+	// the bodies in the sim
+	sbc interfaces.SimBodyCollection
+	// supports test - stop after this many iterations
+	maxIteration int
+	// true if running
+	running           bool
+	// applied to the force and velocity by the body force computer
+	timeScaling       float64
+	// holds computed results for the render engine
+	resultQueueHolder ResultQueueHolder
 }
 
+//
+// Prints metrics to the console
+//
 func (r *ComputationRunner) PrintStats() {
 	totalMillis := r.stopTime.Sub(r.startTime).Milliseconds()
 	fps := float32(r.computations) / float32(totalMillis) * 1000
@@ -37,30 +52,46 @@ func (r *ComputationRunner) PrintStats() {
 	r.wp.PrintStats()
 }
 
+//
+// Creates a new computation runner
+//
+// args:
+//   workerCnt         Number of workers in the pool
+//   timeScaling       Multiplier for force and velocity calc
+//   resultQueueHolder Holds computed results
+//
 func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder ResultQueueHolder,
 	cc interfaces.SimBodyCollection) *ComputationRunner {
 	r := ComputationRunner{
 		stop:              make(chan bool),
 		workerCnt:         workerCnt,
 		wp:                NewWorkPool(workerCnt, cc),
-		cc:                cc,
+		sbc:               cc,
 		timeScaling:       timeScaling,
 		resultQueueHolder: resultQueueHolder,
 	}
 	return &r
 }
 
-// supports debugging
+//
+// Supports debugging - sets the max iterations for the runner
+//
 func (r *ComputationRunner) SetMaxIterations(maxIteration int) *ComputationRunner {
 	r.maxIteration = maxIteration
 	return r
 }
 
+//
+// Starts the runner
+//
 func (r *ComputationRunner) Start() *ComputationRunner {
 	go r.run()
 	return r
 }
 
+//
+// Stops the runner
+//
 func (r *ComputationRunner) Stop() {
 	if r.running {
 		r.stop <- true
@@ -74,6 +105,10 @@ func (r *ComputationRunner) SetWorkers(workerCnt int) {
 	r.workerCnt = workerCnt
 }
 
+//
+// Main runner. A go routine that runs until stopped. Runs one computation, and monitors
+// the stop channel in a loop
+//
 func (r *ComputationRunner) run() {
 	r.startTime = time.Now()
 	for r.running = true; r.running; {
@@ -93,7 +128,24 @@ func (r *ComputationRunner) run() {
 	r.stopTime = time.Now()
 	r.stop <- true
 }
-
+//
+// Runs one computation. Executes a nested loop:
+//   for each body
+//     for each other-body
+//       compute the force on body from other-body
+//
+// Each body from the outer loop is submitted into the worker pool, and has access to the whole body
+// collection . Therefore, each body is free to update its own force without thread synchronization on the
+// force member fields because its the only body doing that calculation on itself. The application
+// of the total final force to the body velocity and position is performed as the last step once
+// the entire collection of bodies have had their force computed.
+//
+// So at that time, it is safe to update the velocity and position without synchronization because no
+// other threads are reading the bodies. The results are stored in a queue of {@link BodyRenderInfo}
+// instances which the graphics engine consumes. The graphics engine continually gets a copy of the
+// body values (and only what it needs to render the visuals) so there is never thread contention
+// between the graphics engine and the body position computation
+//
 func (r *ComputationRunner) runOneComputation() {
 	r.iterations++
 	if r.resultQueueHolder.IsFull() {
@@ -101,7 +153,7 @@ func (r *ComputationRunner) runOneComputation() {
 	}
 	start := time.Now()
 	bodies := 0
-	r.cc.IterateOnce(func(c interfaces.SimBody) {
+	r.sbc.IterateOnce(func(c interfaces.SimBody) {
 		r.wp.submit(c)
 		r.submits++
 		bodies++
@@ -115,13 +167,13 @@ func (r *ComputationRunner) runOneComputation() {
 	r.waits++
 	r.waitMillis += time.Now().Sub(start).Milliseconds()
 
-	rq, _ := r.resultQueueHolder.NewQueue(bodies)
-	r.cc.IterateOnce(func(c interfaces.SimBody) {
+	rq, _ := r.resultQueueHolder.NewResultQueue(bodies) // guarded above
+	r.sbc.IterateOnce(func(c interfaces.SimBody) {
 		ri := c.Update(r.timeScaling)
 		rq.AddRenderable(ri)
 	})
 	rq.computed = true
-	r.cc.Cycle()
+	r.sbc.Cycle()
 	r.computations++
 	r.goroutines += runtime.NumGoroutine()
 }

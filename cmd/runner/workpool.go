@@ -7,24 +7,48 @@ import (
 	"time"
 )
 
+//
+// Defines the worker pool state
+//
 type WorkPool struct {
+	// dynamically updated by the 'submit' function to round-robin the work into the pool
 	wrkIdx      uint
+	// workers
 	workers     []*Worker
+	// wait group - waits for all submitted work to complete
 	wg          sync.WaitGroup
+	// metrics
 	submissions int64
 	millis      int64
-	cc          interfaces.SimBodyCollection
+	// the simulation body collection
+	sbc         interfaces.SimBodyCollection
 }
 
+//
+// Defines the worker state
+//
 type Worker struct {
+	// unique ID per worker
 	id          uint
+	// how the worker pool shuts down workers
 	stop        chan bool
+	// how the worker receives work
 	compute     chan interfaces.SimBody
+	// metrics
 	invocations int
 	millis      int64
 }
-
-func worker(w *Worker, wg *sync.WaitGroup, cc interfaces.SimBodyCollection) {
+//
+// A goroutine that is started by the work pool. Waits for a body on its 'compute' channel and when
+// it gets a body, calls the 'ForceComputer' method on the the body. Is stopped using the 'stop'
+// channel
+//
+// args:
+//   w    This worker
+//   wg   Wait group to signal completion of force calculation for the body
+//   sbc  The collection wrapper over the bodies in the sim
+//
+func worker(w *Worker, wg *sync.WaitGroup, sbc interfaces.SimBodyCollection) {
 	millis := int64(0)
 	invocations := 0
 	for {
@@ -34,11 +58,11 @@ func worker(w *Worker, wg *sync.WaitGroup, cc interfaces.SimBodyCollection) {
 			// so this shutdown leaves unfinished work
 			w.invocations = invocations
 			w.millis = millis
-			w.stop<- true
+			w.stop<- true // acknowledge stop
 			return
 		case c := <-w.compute:
 			start := time.Now()
-			c.ForceComputer(cc)
+			c.ForceComputer(sbc)
 			invocations++
 			wg.Done()
 			millis += time.Now().Sub(start).Milliseconds()
@@ -47,29 +71,43 @@ func worker(w *Worker, wg *sync.WaitGroup, cc interfaces.SimBodyCollection) {
 	}
 }
 
-func NewWorkPool(goroutines int, cc interfaces.SimBodyCollection) *WorkPool {
+//
+// Creates a work pool
+//
+// args:
+//   goroutines  The number of go routines to create in the pool
+//   sbc         The collection wrapper over the bodies in the sim
+//
+// returns:
+//   pointer to created pool
+//
+func NewWorkPool(goroutines int, sbc interfaces.SimBodyCollection) *WorkPool {
 	wp := WorkPool{
 		wrkIdx:      0,
 		workers:     []*Worker{},
 		wg:          sync.WaitGroup{},
 		submissions: 0,
 		millis:      0,
-		cc:          cc,
+		sbc:         sbc,
 	}
 	for i := 0; i < goroutines; i++ {
 		w := Worker{
 			id:          uint(i),
 			stop:        make(chan bool),
-			compute:     make(chan interfaces.SimBody, 5), // TODO buffer irrelevant?
+			compute:     make(chan interfaces.SimBody, 5),
 			invocations: 0,
 			millis:      0,
 		}
 		wp.workers = append(wp.workers, &w)
-		go worker(&w, &wp.wg, cc)
+		go worker(&w, &wp.wg, sbc)
 	}
 	return &wp
 }
 
+//
+// Shuts down the workers in the pool, waiting for them all to acknowledge shutdown
+// before returning to the caller
+//
 func (wp *WorkPool) ShutDownWorkPool() {
 	for _, w := range wp.workers {
 		w.stop <- true
@@ -77,6 +115,9 @@ func (wp *WorkPool) ShutDownWorkPool() {
 	}
 }
 
+//
+// Prints stats to the console
+//
 func (wp *WorkPool) PrintStats() {
 	fmt.Printf("Worker Pool\n submissions: %v\n millis: %v\n millis/submission: %v\n", wp.submissions,
 		wp.millis, float32(wp.millis)/float32(wp.submissions))
@@ -86,6 +127,9 @@ func (wp *WorkPool) PrintStats() {
 	}
 }
 
+//
+// Submits a body to the pool for computation
+//
 func (wp *WorkPool) submit(c interfaces.SimBody) {
 	start := time.Now()
 	wp.wg.Add(1)
@@ -95,6 +139,9 @@ func (wp *WorkPool) submit(c interfaces.SimBody) {
 	wp.millis += time.Now().Sub(start).Milliseconds()
 }
 
+//
+// Waits for all submitted work to complete
+//
 func (wp *WorkPool) wait() {
 	wp.wg.Wait()
 }

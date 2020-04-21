@@ -20,25 +20,41 @@ import (
 	"time"
 )
 
+//
+// G3nApp state
+//
 type G3nApp struct {
+	// G3N managed
 	app *app.Application
 	scene *core.Node
+	// result queue holder provides list of renderable objects
 	holder runner.ResultQueueHolder
+	// fly camera
 	flyCam *flycam.FlyCam
+	// G3N meshes in the scene graph - synced to the renderable objects obtained from 'holder'
 	meshes map[int]*graphic.Mesh
+	// each body that is a sun also creates a light source
 	lightSources map[int]*light.Point
-	initialCam *math32.Vector3
 }
 
 // singleton
 var g3nApp G3nApp
 
+//
+// Starts the G3N render loop using the passed params
+//
+// args:
+//   initialCam    - initial camera position (always looks at 0,0,0 from this vantage point)
+//   width, height - screen dimensions
+//   holder        - result queue holder - provides bodies to render
+//   done          - channel to signal caller to indicate that the window was closed by virtue of
+//                   the user pressing ESC
+//
 func StartG3nApp(initialCam *math32.Vector3, width, height int, holder runner.ResultQueueHolder, done chan<- bool) {
 	if g3nApp.app != nil {
 		panic("Cannot call StartG3nApp twice")
 	}
 	go func() {
-		// TODO support initial cam location
 		g3nApp = G3nApp{
 			app.App(width, height, "N-Body Golang Simulation"),
 			core.NewNode(),
@@ -46,50 +62,51 @@ func StartG3nApp(initialCam *math32.Vector3, width, height int, holder runner.Re
 			&flycam.FlyCam{},
 			map[int]*graphic.Mesh{},
 			map[int]*light.Point{},
-			initialCam,
 		}
 		gui.Manager().Set(g3nApp.scene)
-		g3nApp.flyCam = flycam.NewFlyCam(window.Get().(*window.GlfwWindow), g3nApp.scene, width, height, *initialCam)  // TODO test in struct initializer
+		g3nApp.flyCam = flycam.NewFlyCam(window.Get().(*window.GlfwWindow), g3nApp.scene, width, height, *initialCam)
 
 		// TODO register screen resize callback
 
 		// set the background to black
 		g3nApp.app.Gls().ClearColor(0.0, 0.0, 0.0, 1.0)
-		g3nApp.app.Run(renderLoop) // G3N engine calls the passed function
-		done<- true
+		g3nApp.app.Run(renderLoop) // G3N engine calls the passed function until user presses ESC
+		done<- true // user pressed ESC
 	}()
 }
 
-// causes the g3nApp.app.Run function to return, resulting in the 'done' channel passed to the
-// 'StartG3nApp' function to get signalled so the caller of that function knows that the app is
-// stopped.
+//
+// Causes the g3nApp.app.Run function to return in the go routine run by the 'StartG3nApp' function
+//
 func StopG3nApp() {
 	g3nApp.app.IWindow.(*window.GlfwWindow).SetShouldClose(true)
 }
 
+//
 // Callback - called by the G3N engine according to its hard-coded frame rate.
+//
 func renderLoop(renderer *renderer.Renderer, _ time.Duration) {
 	updateSim()
 	g3nApp.app.Gls().Clear(gls.DEPTH_BUFFER_BIT | gls.STENCIL_BUFFER_BIT | gls.COLOR_BUFFER_BIT)
 	err := renderer.Render(g3nApp.scene, g3nApp.flyCam.Cam())
 	if err != nil {
 		// TODO PANIC?
-		//fmt.Printf("render error: %v\n", err)
 	}
 }
 
-// Consumes the result queue holder to get a list of bodies and uses the list to update the simulation
+//
+// Consumes the result queue holder to get a list of bodies and uses the list to update the scene
+// graph
+//
 func updateSim() {
 	rq, ok := g3nApp.holder.NextComputedQueue()
 	if !ok {
 		return
 	}
 
-	//println("got a computed queue")
 	renderedBodies := 0
 	lightSources := 0
 	for _, bri := range rq.Queue() {
-		//fmt.Printf("g3napp updateSim bri=%+v\n", bri)
 		if !bri.Exists() {
 			// body no longer exists so remove from the scene graph
 			if mesh, ok := g3nApp.meshes[bri.Id()]; ok {
@@ -125,11 +142,10 @@ func updateSim() {
 			renderedBodies++
 		}
 	}
-	//fmt.Printf("g3napp rendered %v bodies and %v light sources\n", renderedBodies, lightSources)
 }
 
 //
-// Translates a sim body color to a G3N body color. These colors are compatible with the Java version.
+// Translates a sim body color to a G3N body color. These color names are compatible with the Java version.
 // TODO support all G3N colors
 //
 func xlatColor(color globals.BodyColor) *math32.Color {
@@ -157,7 +173,7 @@ func xlatColor(color globals.BodyColor) *math32.Color {
 }
 
 //
-// Converts the passed renderable into a G3N mesh, adds the mesh to the instance map of meshes, and also
+// Converts the passed 'Renderable' into a G3N mesh, adds the mesh to the instance map of meshes, and also
 // adds the mesh to the G3N scene graph
 //
 func addBody(bri interfaces.Renderable) *graphic.Mesh {
@@ -168,7 +184,7 @@ func addBody(bri interfaces.Renderable) *graphic.Mesh {
 		mat.SetShininess(1)
 		mat.SetEmissiveColor(xlatColor(globals.White))
 		mesh = graphic.NewMesh(geom, mat)
-		pl := light.NewPoint(xlatColor(globals.White), 100)
+		pl := light.NewPoint(xlatColor(globals.White), bri.Intensity())
 		pl.SetLinearDecay(.00001)
 		pl.SetQuadraticDecay(.00001)
 		pl.SetPosition(bri.X32(), bri.Y32(), bri.Z32())
@@ -181,6 +197,5 @@ func addBody(bri interfaces.Renderable) *graphic.Mesh {
 	}
 	g3nApp.scene.Add(mesh)
 	g3nApp.meshes[bri.Id()] = mesh
-	//fmt.Printf("g3napp.addBody added renderable: %+v\n", bri)
 	return mesh
 }

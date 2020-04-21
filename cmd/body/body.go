@@ -33,19 +33,12 @@ type Body struct {
 	// TODO R should be "class" scope
 	R             float64
 	isSun         bool
+	intensity     float32
 	exists        bool
 	lock          int32
 	withTelemetry bool
 	pinned        bool
 	fragInfo      FragInfo
-}
-
-// TODO this might be stupid:
-type BodyOverrides struct {
-	Id           int
-	Position     util.Vector3
-	Velocity     util.Vector3
-	Mass, Radius float64
 }
 
 // creates a body that exists with hard-coded values and properties typically of interest specified as function args
@@ -75,6 +68,7 @@ func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float64, collisionBehavio
 		bodyColor:         bodyColor,
 		R:                 R,
 		isSun:             false,
+		intensity:         0,
 		exists:            true,
 		lock:              0,
 		withTelemetry:     withTelemetry,
@@ -111,8 +105,12 @@ func (b *Body) Z32() float32                 { return float32(b.z) }
 func (b *Body) Radius() float64              { return b.radius }
 func (b *Body) Radius32() float32            { return float32(b.radius) }
 func (b *Body) IsSun() bool                  { return b.isSun }
-func (b *Body) SetSun()                      { b.isSun = true }
+func (b *Body) Intensity() float32           { return b.intensity }
+func (b *Body) SetSun(intensity float32)     { b.isSun = true; b.intensity = intensity }
 func (b *Body) BodyColor() globals.BodyColor { return b.bodyColor }
+func (b *Body) SetCollisionBehavior(behavior globals.CollisionBehavior) {
+	b.collisionBehavior = behavior
+}
 
 func (b *Body) Update(timeScaling float64) interfaces.Renderable {
 	if !b.exists {
@@ -203,38 +201,6 @@ func (b *Body) subsume(dist float64, otherBody *Body) {
 
 }
 
-func (b *Body) CopyOfWithOverrides(bo BodyOverrides) *Body {
-	return &Body{
-		bo.Id,
-		b.name,
-		b.class,
-		b.collided,
-		b.fragmenting,
-		bo.Position.X,
-		bo.Position.Y,
-		bo.Position.Z,
-		bo.Velocity.X,
-		bo.Velocity.X,
-		bo.Velocity.X,
-		bo.Radius,
-		bo.Mass,
-		b.fx,
-		b.fy,
-		b.fz,
-		b.fragFactor,
-		b.fragmentationStep,
-		b.collisionBehavior,
-		b.bodyColor,
-		b.R,
-		b.isSun,
-		b.exists,
-		b.lock,
-		b.withTelemetry,
-		b.pinned,
-		b.fragInfo,
-	}
-}
-
 func (b *Body) CopyOf() *Body {
 	return &Body{
 		b.id,
@@ -259,6 +225,7 @@ func (b *Body) CopyOf() *Body {
 		b.bodyColor,
 		b.R,
 		b.isSun,
+		b.intensity,
 		b.exists,
 		b.lock,
 		b.withTelemetry,
@@ -533,10 +500,14 @@ func (b *Body) fragment(cc interfaces.SimBodyCollection) {
 		b.fragInfo.fragments--
 		v := util.GetVectorEven(b.fragInfo.curPos, b.fragInfo.radius * .9)
 		toAdd := &Body{
-			id: nextId(),
+			id:   NextId(),
+			name: b.name, class: b.class,
 			x:  v.X, y: v.Y, z: v.Z, vx: b.vx, vy: b.vy, vz: b.vz, mass: b.fragInfo.mass, radius: b.fragInfo.newRadius,
-			collisionBehavior: globals.Elastic, bodyColor: b.bodyColor, fragFactor: 0, fragmentationStep: 0,
-			withTelemetry: false, name: b.name, class: b.class, pinned: false,
+			fragFactor: 0, fragmentationStep: 0,
+			collisionBehavior: globals.Elastic, bodyColor: b.bodyColor,
+			R: R, // todo fix this
+			isSun: false, exists: true,
+			withTelemetry: false, pinned: false,
 		}
 		cc.Add(toAdd)
 		cnt++
@@ -547,9 +518,11 @@ func (b *Body) fragment(cc interfaces.SimBodyCollection) {
 	if b.fragInfo.fragments <= 0 {
 		// turn this instance into a fragment
 		b.mass = b.fragInfo.mass
-		b.radius = b.fragInfo.newRadius // TODO DON'T KNOW HOW TO CHANGE RADIUS IN G3N
+		b.radius = b.fragInfo.newRadius
 		b.collisionBehavior = globals.Elastic
 		b.fragmenting = false
+		// TODO DON'T KNOW HOW TO CHANGE RADIUS IN G3N SO JUST SET IT NOT EXISTS FOR NOW
+		b.exists = false
 	} else {
 		// shrink the b a little each time
 		b.radius = b.radius * .9
@@ -563,7 +536,7 @@ var idGenerator = struct {
 	sync.Mutex{}, 0,
 }
 
-func nextId() (id int) {
+func NextId() (id int) {
 	idGenerator.lock.Lock()
 	id = idGenerator.id
 	idGenerator.id++

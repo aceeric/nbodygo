@@ -1,5 +1,7 @@
 package interfaces
 
+import "nbodygo/cmd/globals"
+
 //
 // The SimBody interface defines the functionality required to integrate a body into
 // the computation runner, and hence into the n-body simulation. This interface expresses only the
@@ -23,6 +25,9 @@ type SimBody interface {
 	// Every body must have a unique ID, which is used in various maps throughout the app
 	Id() int
 
-	// sets the body to be a Sun
-	SetSun()
+	// sets the body to be a Sun, and sets the intensity to the passed value
+	SetSun(float32)
+
+	// sets the collision behavior
+	SetCollisionBehavior(behavior globals.CollisionBehavior)
 }
