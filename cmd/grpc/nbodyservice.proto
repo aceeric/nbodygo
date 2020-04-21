@@ -1,0 +1,155 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "org.ericace.grpcserver";
+option objc_class_prefix = "NBODYSVC";
+
+import "google/protobuf/empty.proto";
+
+package nbodyservice;
+
+// Defines a gRPC Service that enables entities external to the running JVM to view / modify
+// simulation configurables, thus changing the behavior of the simulation on the fly
+service NBodyService {
+
+  // Sets the number of threads allocated to computing the body positions
+  // (The render engine threading model is not modifiable at this time)
+  rpc SetComputationThreads (ItemCount) returns (ResultCode) {}
+
+  // Sets the number of compute-ahead results allowed, in cases where the computation
+  // thread outruns the render thread
+  rpc SetResultQueueSize (ItemCount) returns (ResultCode) {}
+
+  // Changes the smoothing factor. When the body force and position computation runs
+  // during each compute cycle, the force and resulting motion of the bodies is
+  // smoothed by a factor which can be changed using this RPC method. The result is
+  // that the apparent motion of the simulation is faster or slower
+  rpc SetSmoothing (Factor) returns (ResultCode) {}
+
+  // Sets the coefficient of restitution for elastic collisions
+  rpc SetRestitutionCoefficient (RestitutionCoefficient) returns (ResultCode) {}
+
+  // Removes the specified number of bodies from the sim
+  rpc RemoveBodies (ItemCount) returns (ResultCode) {}
+
+  // Adds a body into the simulation
+  rpc AddBody (BodyDescription) returns (ResultCode) {}
+
+  // Modifies body properties
+  rpc ModBody (ModBodyMessage) returns (ResultCode) {}
+
+  // Gets body properties (use ModBodyMessage and ignore what is not needed)
+  rpc GetBody (ModBodyMessage) returns (BodyDescription) {}
+
+  // Gets the current values of sim configurables
+  rpc GetCurrentConfig(google.protobuf.Empty) returns (CurrentConfig) {}
+}
+
+// Holds the values of configurables
+message CurrentConfig {
+  int64  bodies = 1;
+  int64  result_queue_size = 2;
+  int64  computation_threads = 3;
+  float smoothing_factor = 4;
+  float restitution_coefficient = 6;
+}
+
+// All the params required to represent a body in the simulation
+message BodyDescription {
+  int64 id = 1; // ignored on create
+  float x = 2;
+  float y = 3;
+  float z = 4;
+  float vx = 5;
+  float vy = 6;
+  float vz = 7;
+  float mass = 8;
+  float radius = 9;
+  bool is_sun = 10;
+  CollisionBehaviorEnum collision_behavior = 11;
+  BodyColorEnum body_color = 12;
+  float frag_factor = 13;
+  float frag_step = 14;
+  bool with_telemetry = 15;
+  string name = 16;
+  string class = 17;
+  bool pinned = 18;
+}
+
+// Modify body properties. To modify by ID, pass the ID and omit name and class:
+//   ModBody "id: 1 p: 'radius=100'"
+// To modify by name or class, pass the ID as -1, and provide name or class:
+//   ModBody "id: -1 name='jupiter' p: 'radius=100'"
+// ID has to be passed in this case because the cli tool (or the protobuf protocol?) passes a non-specified
+// int field as zero, which happens to be a valid body ID pretty much all the time...
+// Pass an array of params via the cli by repeating the 'p' message:
+//   ModBody "id: 1 p: 'radius=100' p: 'vx=200' p: 'collision=NONE'"
+message ModBodyMessage {
+  int64 id = 1;
+  string name = 2;
+  string class = 3;
+  repeated string p = 4;
+}
+
+// A generic int arg
+message ItemCount {
+  int64 item_count = 1;
+}
+
+// A smoothing factor
+message Factor {
+  float factor = 1;
+}
+
+// Coefficient of restitution
+message RestitutionCoefficient {
+  float restitution_coefficient = 1;
+}
+
+// Returned to clients from all messages in the API
+message ResultCode {
+  enum ResultCodeEnum {
+    OK = 0;
+    ERROR = 1;
+  }
+  ResultCodeEnum result_code = 1;
+  string message = 2;
+}
+
+// Defines the behavior when bodies reach a certain proximity
+//
+// - UNDEF    - Because protobuf handles zero enum values oddly - like it doesn't display a value
+//              in the cli tool if it is zero
+// - NONE     - Bodies pass through each other
+// - SUBSUME  - Larger bodies subsume smaller bodies within a defined proximity
+// - ELASTIC  - Elastic collision (bodies bounce off each other)
+// - FRAGMENT - If force is sufficient, a body can fragment into smaller bodies upon collision
+
+enum CollisionBehaviorEnum {
+  UNDEF = 0;
+  NONE = 1;
+  SUBSUME = 2;
+  ELASTIC = 3;
+  FRAGMENT = 4;
+}
+
+// Defines the supported body colors. Presently, these align with the JMonkeyEngine
+
+enum BodyColorEnum {
+  NOCOLOR = 0;
+  RANDOM = 1;
+  BLACK = 2;
+  WHITE = 3;
+  DARKGRAY = 4;
+  GRAY = 5;
+  LIGHTGRAY = 6;
+  RED = 7;
+  GREEN = 8;
+  BLUE = 9;
+  YELLOW = 10;
+  MAGENTA = 11;
+  CYAN = 12;
+  ORANGE = 13;
+  BROWN = 14;
+  PINK = 15;
+}

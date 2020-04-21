@@ -26,3 +26,7 @@ TODO
 - make the code idiomatic
 - todos
 - etc..
+
+grpc
+https://grpc.io/docs/quickstart/go/
+go get google.golang.org/grpc@v1.28.1
