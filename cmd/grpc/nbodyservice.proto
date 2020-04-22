@@ -1,12 +1,8 @@
 syntax = "proto3";
 
-option java_multiple_files = true;
-option java_package = "org.ericace.grpcserver";
-option objc_class_prefix = "NBODYSVC";
+option go_package = ".;grpc";
 
 import "google/protobuf/empty.proto";
-
-package nbodyservice;
 
 // Defines a gRPC Service that enables entities external to the running JVM to view / modify
 // simulation configurables, thus changing the behavior of the simulation on the fly

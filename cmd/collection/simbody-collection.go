@@ -11,7 +11,7 @@ import (
 // The collection state
 //
 type simBodyCollection struct {
-	// this is the body array that everyone will iterate
+	// this is the body array that all goroutines will iterate
 	arr    []interfaces.SimBody
 	// holds adds until they can be copied into the array above
 	list   *list.List
@@ -51,7 +51,7 @@ func (sbc *simBodyCollection) Add(b interfaces.SimBody) {
 
 //
 // Go routine that supports concurrent (deferred) adds. Receives adds from the 'Add' function
-// through the 'addCh' channel. Adds added bodies to a list, which is lazily added into the body
+// through the 'addCh' channel. Adds added bodies to an internal list, which is lazily added into the body
 // array by the 'Cycle' function.
 //
 func (sbc *simBodyCollection) handleAdds() {

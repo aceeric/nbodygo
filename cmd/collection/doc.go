@@ -5,9 +5,9 @@ non-blocking collection with great performance.
 
 The n-body simulation spends 99.999% of its time doing two things: 1) iterating the list of bodies,
 and, 2) calculating force. Each body has to interrogate each other body each cycle to compute
-gravitational force on itself. So for 2500 bodies in the sim, that's 2,500 X 2,500 iterations = 6,250,000
-iterations per frame. If we want to achieve 60 frames per second for a smooth animation, that's
-375,000,000 iterations over the body collection every second. The force calculation is what it is: it's
+gravitational force on itself. So for 2,500 bodies in the sim, that's 2,500 X 2,500 reads = 6,250,000
+reads per frame. If we want to achieve 60 frames per second for a smooth animation, that's
+375,000,000 reads over the body collection every second. The force calculation is what it is: it's
 about 30 floating point operations and it probably can't be optimized. So that leaves one place to look
 for performance: iterating the body collection.
 

@@ -11,7 +11,7 @@ import (
 // Defines the worker pool state
 //
 type WorkPool struct {
-	// dynamically updated by the 'submit' function to round-robin the work into the pool
+	// dynamically updated by the 'submit' function to round-robin work into the pool
 	wrkIdx      uint
 	// workers
 	workers     []*Worker
@@ -39,7 +39,7 @@ type Worker struct {
 	millis      int64
 }
 //
-// A goroutine that is started by the work pool. Waits for a body on its 'compute' channel and when
+// A worker goroutine that is started by the work pool. Waits for a body on its 'compute' channel and when
 // it gets a body, calls the 'ForceComputer' method on the the body. Is stopped using the 'stop'
 // channel
 //

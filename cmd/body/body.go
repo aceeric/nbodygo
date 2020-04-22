@@ -1,6 +1,7 @@
 package body
 
 import (
+	"fmt"
 	"math"
 	"nbodygo/cmd/bodyrender"
 	"nbodygo/cmd/globals"
@@ -8,6 +9,7 @@ import (
 	"nbodygo/cmd/util"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 const (
@@ -136,15 +138,14 @@ func (b *Body) Update(timeScaling float64) interfaces.Renderable {
 	return bodyrender.NewFromRenderable(b)
 }
 
-// TODO rename bodyQueue to bodies or some such
 // TODO equivalent of Java synchronized primitive which is a guaranteed atomic read/write
-func (b *Body) ForceComputer(cc interfaces.SimBodyCollection) {
+func (b *Body) ForceComputer(sbc interfaces.SimBodyCollection) {
 	// TODO panic/recover
 	if b.fragmenting {
-		b.fragment(cc)
+		b.fragment(sbc)
 	} else {
 		b.fx, b.fy, b.fz = 0, 0, 0
-		cc.IterateOnce(func(c interfaces.SimBody) {
+		sbc.IterateOnce(func(c interfaces.SimBody) {
 			otherBody := c.(*Body)
 			if !otherBody.exists || b.fragmenting {
 				return
@@ -164,7 +165,7 @@ func (b *Body) ForceComputer(cc interfaces.SimBodyCollection) {
 // end SimBody interface implementation
 
 func (b *Body) subsume(dist float64, otherBody *Body) {
-	if dist+otherBody.radius >= b.radius*1.2 {
+	if dist + otherBody.radius >= b.radius*1.2 {
 		// leave unless most of the other b is inside this b
 		return
 	}
@@ -234,7 +235,7 @@ func (b *Body) CopyOf() *Body {
 	}
 }
 
-func (b *Body) calcForceFrom(otherBody *Body) ForceCalcResult {
+func (b *Body) calcForceFromOrig(otherBody *Body) ForceCalcResult {
 	dx := otherBody.x - b.x
 	dy := otherBody.y - b.y
 	dz := otherBody.z - b.z
@@ -245,29 +246,57 @@ func (b *Body) calcForceFrom(otherBody *Body) ForceCalcResult {
 		b.fy += force * dy / dist
 		b.fz += force * dz / dist
 	} else if dist <= b.radius + otherBody.radius {
-		return Collision(dist) // TODO NOT idiomatic?
+		return Collision(dist)
 	}
-	return NoCollision() // TODO NOT idiomatic?
+	return NoCollision()
+}
+
+func (b *Body) calcForceFrom(otherBody *Body) ForceCalcResult {
+	dx := otherBody.x - b.x
+	dy := otherBody.y - b.y
+	dz := otherBody.z - b.z
+	dist := math.Sqrt(dx*dx + dy*dy + dz*dz)
+	if dist > b.radius + otherBody.radius {
+		force := G * b.mass * otherBody.mass / (dist * dist)
+		b.fx += force * dx / dist
+		b.fy += force * dy / dist
+		b.fz += force * dz / dist
+	} else {
+		if b.tryLock() {
+			defer b.unLock()
+			if b.collided {
+				force := G * b.mass * otherBody.mass / (dist * dist)
+				b.fx += force * dx / dist
+				b.fy += force * dy / dist
+				b.fz += force * dz / dist
+			} else {
+				return Collision(dist)
+			}
+		}
+	}
+	return NoCollision()
 }
 
 func (b *Body) resolveCollision(dist float64, otherBody *Body) {
 	if b.collisionBehavior == globals.Subsume || otherBody.collisionBehavior == globals.Subsume {
 		if b.radius > otherBody.radius {
 			b.subsume(dist, otherBody)
+			fmt.Printf("%v, this subsume other\n", time.Now())
 		} else {
 			otherBody.subsume(dist, b)
+			fmt.Printf("%v, other subsume this\n", time.Now())
 		}
 	} else if (b.collisionBehavior == globals.Elastic || b.collisionBehavior == globals.Fragment) &&
 		(otherBody.collisionBehavior == globals.Elastic || otherBody.collisionBehavior == globals.Fragment) {
 		r := b.calcElasticCollision(otherBody)
 		if r.collided {
-			// todo defer handle unlock
 			if b.tryLock() {
 				otherLock := otherBody.tryLock()
 				if otherLock && b.exists && otherBody.exists {
 					fr := b.shouldFragment(otherBody, r)
 					if fr.shouldFragment {
 						b.doFragment(otherBody, fr)
+						fmt.Printf("%v, initiate fragment\n", time.Now())
 					} else {
 						b.doElastic(otherBody, r)
 					}
@@ -277,9 +306,10 @@ func (b *Body) resolveCollision(dist float64, otherBody *Body) {
 					otherBody.unLock()
 				}
 			}
-			if b.collided {
-				// TODO LOGGING
-			}
+			// RACE COND MOVE INSIDE
+			//if b.collided {
+			//	// TODO LOGGING
+			//}
 		}
 	}
 }
@@ -474,6 +504,7 @@ func (b *Body) doFragment(otherBody *Body, fr FragmentationCalcResult) {
 	}
 }
 
+// TODO clean up locking calls
 func (b *Body) initiateFragmentation(fragFactor float64) {
 	var fragDelta float64
 	if b.fragFactor > 10 {
@@ -481,7 +512,7 @@ func (b *Body) initiateFragmentation(fragFactor float64) {
 	} else {
 		fragDelta = fragFactor - b.fragFactor
 	}
-	fragments := math.Min(fragDelta*b.fragmentationStep, maxFrags)
+	fragments := math.Min(fragDelta * b.fragmentationStep, maxFrags)
 	if fragments <= 1 {
 		b.collisionBehavior = globals.Fragment
 		return
@@ -494,6 +525,7 @@ func (b *Body) initiateFragmentation(fragFactor float64) {
 	b.fragInfo = FragInfo{b.radius, newRadius, newMass, int(fragments), curPos}
 }
 
+// TODO clean up locking calls
 func (b *Body) fragment(cc interfaces.SimBodyCollection) {
 	cnt := 0
 	for ; b.fragInfo.fragments > 0; {

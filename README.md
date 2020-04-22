@@ -17,9 +17,11 @@ go build -o $(pwd) ./...
 TODO
 
 - https://developers.google.com/protocol-buffers/docs/reference/go-generated
-- gRPC client
+- gRPC server/client
+- how go handle replacement for java synchronized keyword
 - metrics
-- Bazel
+- Bazel (or Make?)
+- enums
 - logging
 - id generator
 - tests
@@ -29,4 +31,16 @@ TODO
 
 grpc
 https://grpc.io/docs/quickstart/go/
-go get google.golang.org/grpc@v1.28.1
+```
+$ export GO111MODULE=on
+$ go get google.golang.org/grpc@v1.28.1
+$ go get github.com/golang/protobuf/protoc-gen-go
+$ ls -l $(go env GOPATH)/bin/protoc-gen-go 
+-rwxr-xr-x 1 eace eace 8862644 Apr 21 09:42 /home/eace/go/bin/protoc-gen-go
+$ export PATH="$PATH:$(go env GOPATH)/bin"
+$ pwd
+/home/eace/go/nbodygo
+$ protoc --proto_path=cmd/grpc/ cmd/grpc/nbodyservice.proto --go_out=plugins=grpc:cmd/grpc
+```
+
+
