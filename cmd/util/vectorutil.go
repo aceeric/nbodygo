@@ -44,7 +44,7 @@ func RandomVector(max int32) math32.Vector3 {
 	x := float32(rand.Int31n(max))
 	y := float32(rand.Int31n(max))
 	z := float32(rand.Int31n(max))
-	return math32.Vector3{x, y, z}
+	return math32.Vector3{X: x, Y: y, Z:z}
 }
 
 //

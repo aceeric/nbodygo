@@ -2,7 +2,7 @@ package runner
 
 import (
 	"fmt"
-	"nbodygo/cmd/interfaces"
+	"nbodygo/cmd/body"
 	"sync"
 	"time"
 )
@@ -21,7 +21,7 @@ type WorkPool struct {
 	submissions int64
 	millis      int64
 	// the simulation body collection
-	sbc         interfaces.SimBodyCollection
+	sbc body.SimBodyCollection
 }
 
 //
@@ -33,14 +33,14 @@ type Worker struct {
 	// how the worker pool shuts down workers
 	stop        chan bool
 	// how the worker receives work
-	compute     chan interfaces.SimBody
+	compute     chan body.SimBody
 	// metrics
 	invocations int
 	millis      int64
 }
 //
 // A worker goroutine that is started by the work pool. Waits for a body on its 'compute' channel and when
-// it gets a body, calls the 'ForceComputer' method on the the body. Is stopped using the 'stop'
+// it gets a body, calls the 'Compute' method on the the body. Is stopped using the 'stop'
 // channel
 //
 // args:
@@ -48,7 +48,7 @@ type Worker struct {
 //   wg   Wait group to signal completion of force calculation for the body
 //   sbc  The collection wrapper over the bodies in the sim
 //
-func worker(w *Worker, wg *sync.WaitGroup, sbc interfaces.SimBodyCollection) {
+func worker(w *Worker, wg *sync.WaitGroup, sbc body.SimBodyCollection) {
 	millis := int64(0)
 	invocations := 0
 	for {
@@ -62,7 +62,7 @@ func worker(w *Worker, wg *sync.WaitGroup, sbc interfaces.SimBodyCollection) {
 			return
 		case c := <-w.compute:
 			start := time.Now()
-			c.ForceComputer(sbc)
+			c.Compute(sbc)
 			invocations++
 			wg.Done()
 			millis += time.Now().Sub(start).Milliseconds()
@@ -81,7 +81,7 @@ func worker(w *Worker, wg *sync.WaitGroup, sbc interfaces.SimBodyCollection) {
 // returns:
 //   pointer to created pool
 //
-func NewWorkPool(goroutines int, sbc interfaces.SimBodyCollection) *WorkPool {
+func NewWorkPool(goroutines int, sbc body.SimBodyCollection) *WorkPool {
 	wp := WorkPool{
 		wrkIdx:      0,
 		workers:     []*Worker{},
@@ -94,7 +94,7 @@ func NewWorkPool(goroutines int, sbc interfaces.SimBodyCollection) *WorkPool {
 		w := Worker{
 			id:          uint(i),
 			stop:        make(chan bool),
-			compute:     make(chan interfaces.SimBody, 5),
+			compute:     make(chan body.SimBody, 5),
 			invocations: 0,
 			millis:      0,
 		}
@@ -130,7 +130,7 @@ func (wp *WorkPool) PrintStats() {
 //
 // Submits a body to the pool for computation
 //
-func (wp *WorkPool) submit(c interfaces.SimBody) {
+func (wp *WorkPool) submit(c body.SimBody) {
 	start := time.Now()
 	wp.wg.Add(1)
 	wp.workers[wp.wrkIdx%uint(len(wp.workers))].compute <- c

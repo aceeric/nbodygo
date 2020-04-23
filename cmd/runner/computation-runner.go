@@ -2,7 +2,7 @@ package runner
 
 import (
 	"fmt"
-	"nbodygo/cmd/interfaces"
+	"nbodygo/cmd/body"
 	"runtime"
 	"time"
 )
@@ -26,7 +26,7 @@ type ComputationRunner struct {
 	// the work pool
 	wp *WorkPool
 	// the bodies in the sim
-	sbc interfaces.SimBodyCollection
+	sbc body.SimBodyCollection
 	// supports test - stop after this many iterations
 	maxIteration int
 	// true if running
@@ -61,7 +61,7 @@ func (r *ComputationRunner) PrintStats() {
 //   resultQueueHolder Holds computed results
 //
 func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder ResultQueueHolder,
-	cc interfaces.SimBodyCollection) *ComputationRunner {
+	cc body.SimBodyCollection) *ComputationRunner {
 	r := ComputationRunner{
 		stop:              make(chan bool),
 		workerCnt:         workerCnt,
@@ -148,12 +148,13 @@ func (r *ComputationRunner) run() {
 //
 func (r *ComputationRunner) runOneComputation() {
 	r.iterations++
-	if r.resultQueueHolder.IsFull() {
+	rq, ok := r.resultQueueHolder.NewResultQueue()
+	if !ok {
 		return
 	}
 	start := time.Now()
 	bodies := 0
-	r.sbc.IterateOnce(func(c interfaces.SimBody) {
+	r.sbc.IterateOnce(func(c body.SimBody) {
 		r.wp.submit(c)
 		r.submits++
 		bodies++
@@ -167,12 +168,13 @@ func (r *ComputationRunner) runOneComputation() {
 	r.waits++
 	r.waitMillis += time.Now().Sub(start).Milliseconds()
 
-	rq, _ := r.resultQueueHolder.NewResultQueue(bodies) // guarded above
-	r.sbc.IterateOnce(func(c interfaces.SimBody) {
+	r.sbc.ProcessMods()
+
+	r.sbc.IterateOnce(func(c body.SimBody) {
 		ri := c.Update(r.timeScaling)
 		rq.AddRenderable(ri)
 	})
-	rq.computed = true
+	r.resultQueueHolder.SetComputed(rq)
 	r.sbc.Cycle()
 	r.computations++
 	r.goroutines += runtime.NumGoroutine()

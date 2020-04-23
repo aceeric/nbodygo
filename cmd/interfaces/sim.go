@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"container/list"
+	"nbodygo/cmd/body"
 	"nbodygo/cmd/globals"
 )
 
@@ -105,7 +106,7 @@ type SimInteraction interface {
 	//   id    to get a body by ID
 	//   name  " name
 	//
-	GetBody(id int, name string) SimBody
+	GetBody(id int, name string) body.SimBody
 }
 
 // ModBodyResult enum defines the result of a call to ModBody

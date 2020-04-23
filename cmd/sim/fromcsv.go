@@ -7,7 +7,6 @@ import (
 	"log"
 	"nbodygo/cmd/body"
 	"nbodygo/cmd/globals"
-	"nbodygo/cmd/interfaces"
 	"os"
 	"strconv"
 	"strings"
@@ -45,9 +44,9 @@ import (
 // returns: the parsed list of bodies
 //
 func FromCsv(csvPath string, bodyCount int, defaultCollisionBehavior globals.CollisionBehavior,
-	defaultBodyColor globals.BodyColor) []interfaces.SimBody {
+	defaultBodyColor globals.BodyColor) []body.SimBody {
 
-	var bodies []interfaces.SimBody
+	var bodies []body.SimBody
 	file, err := os.Open(csvPath)
 	defer file.Close()
 	if err != nil {

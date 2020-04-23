@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"nbodygo/cmd/flycam"
 	"nbodygo/cmd/globals"
-	"nbodygo/cmd/interfaces"
+	"nbodygo/cmd/renderable"
 	"nbodygo/cmd/runner"
 	"nbodygo/internal/pkg/app"
 	"nbodygo/internal/pkg/core"
@@ -25,7 +25,7 @@ import (
 //
 type G3nApp struct {
 	// G3N managed
-	app *app.Application
+	app   *app.Application
 	scene *core.Node
 	// result queue holder provides list of renderable objects
 	holder runner.ResultQueueHolder
@@ -71,7 +71,7 @@ func StartG3nApp(initialCam *math32.Vector3, width, height int, holder runner.Re
 		// set the background to black
 		g3nApp.app.Gls().ClearColor(0.0, 0.0, 0.0, 1.0)
 		g3nApp.app.Run(renderLoop) // G3N engine calls the passed function until user presses ESC
-		done<- true // user pressed ESC
+		done <- true               // user pressed ESC
 	}()
 }
 
@@ -103,7 +103,6 @@ func updateSim() {
 	if !ok {
 		return
 	}
-
 	renderedBodies := 0
 	lightSources := 0
 	for _, bri := range rq.Queue() {
@@ -134,9 +133,9 @@ func updateSim() {
 				}
 			}
 			// update this body's position and if the body has a light source, also update that
-			mesh.SetPosition(bri.X32(), bri.Y32(), bri.Z32())
+			mesh.SetPosition(bri.X(), bri.Y(), bri.Z())
 			if pl, ok := g3nApp.lightSources[bri.Id()]; ok {
-				pl.SetPosition(bri.X32(), bri.Y32(), bri.Z32())
+				pl.SetPosition(bri.X(), bri.Y(), bri.Z())
 				lightSources++
 			}
 			renderedBodies++
@@ -150,25 +149,39 @@ func updateSim() {
 //
 func xlatColor(color globals.BodyColor) *math32.Color {
 	switch color {
-	case globals.Black: return &math32.Color{0,0,0}
-	case globals.White: return &math32.Color{1,1,1}
-	case globals.Darkgray: return &math32.Color{0.663, 0.663, 0.663}
-	case globals.Gray: return &math32.Color{0.502, 0.502, 0.502}
-	case globals.Lightgray: return &math32.Color{0.827, 0.827, 0.827}
-	case globals.Red: return &math32.Color{1.000, 0.000, 0.000}
-	case globals.Green: return &math32.Color{0.000, 0.502, 0.000}
-	case globals.Blue: return &math32.Color{0.000, 0.000, 1.000}
-	case globals.Yellow: return &math32.Color{1.000, 1.000, 0.000}
-	case globals.Magenta: return &math32.Color{1.000, 0.000, 1.000}
-	case globals.Cyan: return &math32.Color{0.000, 1.000, 1.000}
-	case globals.Orange: return &math32.Color{1.000, 0.647, 0.000}
-	case globals.Brown: return &math32.Color{0.647, 0.165, 0.165}
-	case globals.Pink: return &math32.Color{1.000, 0.753, 0.796}
+	case globals.Black:
+		return &math32.Color{R: 0, G: 0, B: 0}
+	case globals.White:
+		return &math32.Color{R: 1, G: 1, B: 1}
+	case globals.Darkgray:
+		return &math32.Color{R: 0.663, G: 0.663, B: 0.663}
+	case globals.Gray:
+		return &math32.Color{R: 0.502, G: 0.502, B: 0.502}
+	case globals.Lightgray:
+		return &math32.Color{R: 0.827, G: 0.827, B: 0.827}
+	case globals.Red:
+		return &math32.Color{R: 1.000, G: 0.000, B: 0.000}
+	case globals.Green:
+		return &math32.Color{R: 0.000, G: 0.502, B: 0.000}
+	case globals.Blue:
+		return &math32.Color{R: 0.000, G: 0.000, B: 1.000}
+	case globals.Yellow:
+		return &math32.Color{R: 1.000, G: 1.000, B: 0.000}
+	case globals.Magenta:
+		return &math32.Color{R: 1.000, G: 0.000, B: 1.000}
+	case globals.Cyan:
+		return &math32.Color{R: 0.000, G: 1.000, B: 1.000}
+	case globals.Orange:
+		return &math32.Color{R: 1.000, G: 0.647, B: 0.000}
+	case globals.Brown:
+		return &math32.Color{R: 0.647, G: 0.165, B: 0.165}
+	case globals.Pink:
+		return &math32.Color{R: 1.000, G: 0.753, B: 0.796}
 	case globals.Random:
 		fallthrough
 	default:
 		rand.Seed(time.Now().UnixNano())
-		return &math32.Color{rand.Float32(), rand.Float32(), rand.Float32()}
+		return &math32.Color{R: rand.Float32(), G: rand.Float32(), B: rand.Float32()}
 	}
 }
 
@@ -176,10 +189,10 @@ func xlatColor(color globals.BodyColor) *math32.Color {
 // Converts the passed 'Renderable' into a G3N mesh, adds the mesh to the instance map of meshes, and also
 // adds the mesh to the G3N scene graph
 //
-func addBody(bri interfaces.Renderable) *graphic.Mesh {
+func addBody(bri renderable.Renderable) *graphic.Mesh {
 	var mesh *graphic.Mesh
 	if bri.IsSun() {
-		geom := geometry.NewSphere(float64(bri.Radius()), 20, 20)
+		geom := geometry.NewSphere(bri.Radius(), 20, 20)
 		mat := material.NewStandard(xlatColor(globals.White))
 		mat.SetShininess(1)
 		mat.SetEmissiveColor(xlatColor(globals.White))
@@ -187,11 +200,11 @@ func addBody(bri interfaces.Renderable) *graphic.Mesh {
 		pl := light.NewPoint(xlatColor(globals.White), bri.Intensity())
 		pl.SetLinearDecay(.00001)
 		pl.SetQuadraticDecay(.00001)
-		pl.SetPosition(bri.X32(), bri.Y32(), bri.Z32())
+		pl.SetPosition(bri.X(), bri.Y(), bri.Z())
 		g3nApp.scene.Add(pl)
 		g3nApp.lightSources[bri.Id()] = pl
 	} else {
-		geom := geometry.NewSphere(float64(bri.Radius()), 20, 20)
+		geom := geometry.NewSphere(bri.Radius(), 20, 20)
 		mat := material.NewStandard(xlatColor(bri.BodyColor()))
 		mesh = graphic.NewMesh(geom, mat)
 	}

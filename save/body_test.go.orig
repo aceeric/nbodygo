@@ -1,8 +1,8 @@
-package body
+package save
 
 import (
 	"math/rand"
-	"nbodygo/cmd/cmap"
+	"nbodygo/cmd/body"
 	"nbodygo/cmd/globals"
 	"nbodygo/cmd/interfaces"
 	"nbodygo/cmd/util"
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var testBody = Body{
+var testBody = body.Body{
 	id:                0,
 	name:              "b1",
 	class:             "c1",
@@ -38,12 +38,12 @@ var testBody = Body{
 	lock:              0,
 	withTelemetry:     false,
 	pinned:            false,
-	fragInfo:          FragInfo{0, 0, 0, 0, math32.Vector3{0, 0, 0}},
+	fragInfo:          body.FragInfo{0, 0, 0, 0, math32.Vector3{0, 0, 0}},
 }
 
 // just testing basic mechanics
 func TestBodyCreate1(t *testing.T) {
-	tb1 := Body{
+	tb1 := body.Body{
 		id:                1,
 		name:              "b1",
 		class:             "c1",
@@ -70,14 +70,14 @@ func TestBodyCreate1(t *testing.T) {
 		lock:              0,
 		withTelemetry:     false,
 		pinned:            false,
-		fragInfo:          FragInfo{0, 0, 0, 0, math32.Vector3{0, 0, 0}},
+		fragInfo:          body.FragInfo{0, 0, 0, 0, math32.Vector3{0, 0, 0}},
 	}
 	t.Logf("%+v\n", tb1)
 }
 
 // just testing basic mechanics
 func TestBodyCreate2(t *testing.T) {
-	b := NewBody(1, 0, 0, 0, 0, 0, 0, 1E20, 100, globals.Elastic, globals.Blue,
+	b := body.NewBody(1, 0, 0, 0, 0, 0, 0, 1E20, 100, globals.Elastic, globals.Blue,
 		0, 0, false, "foo", "bar", false)
 	_ = b
 	//t.Logf("%+v\n", b)
@@ -96,7 +96,7 @@ func TestBodyCreate3(t *testing.T) {
 // would. Verifies that force was set to non-zero on all bodies
 func TestBodyForceCalcDirect(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	bodies := [10000]*Body{}
+	bodies := [10000]*body.Body{}
 	for i := range bodies {
 		b := testBody.CopyOf()
 		b.id = i

@@ -1,6 +1,9 @@
-package interfaces
+package body
 
-import "nbodygo/cmd/globals"
+import (
+	"nbodygo/cmd/globals"
+	"nbodygo/cmd/renderable"
+)
 
 //
 // The SimBody interface defines the functionality required to integrate a body into
@@ -10,12 +13,12 @@ import "nbodygo/cmd/globals"
 type SimBody interface {
 	// Computes force on this body from all other bodies in the sim. Detects and resolves collisions with
 	// other bodies. Accumulates force in the body, and may change other body properties based on collision
-	ForceComputer(SimBodyCollection)
+	Compute(SimBodyCollection)
 
 	// Updates velocity and position from the results of gravitational force calculation and collision
 	// resolution. The function returns a 'Renderable' which contains only the information needed to render
 	// the body in the rendering engine
-	Update(timeScaling float64) Renderable
+	Update(timeScaling float64) renderable.Renderable
 
 	// Returns true if the body exists, false if the body has been destroyed and should be
 	// removed from the simulation and the scene graph. A body can be destroyed if - for example - if gets
@@ -26,8 +29,14 @@ type SimBody interface {
 	Id() int
 
 	// sets the body to be a Sun, and sets the intensity to the passed value
-	SetSun(float32)
+	SetSun(float64)
 
 	// sets the collision behavior
 	SetCollisionBehavior(behavior globals.CollisionBehavior)
+
+	// resolves collision between bodies
+	ResolveCollision(SimBody)
+
+	// resolves one body subsuming another
+	ResolveSubsume(SimBody)
 }

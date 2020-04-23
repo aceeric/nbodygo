@@ -101,11 +101,12 @@ func NewFlyCam(glfwWindow *window.GlfwWindow, scene *core.Node, width, height in
 //
 func engage() {
 	glfwWindow := flyCam.glfwWindow
-	glfwWindow.SubscribeID(window.OnKeyUp, DefaultEvId, handleEsc)
 	if !flyCam.f12Bound {
 		flyCam.f12Bound = true
 		glfwWindow.SubscribeID(window.OnKeyUp, EngageDisengageEvId, handleF12)
 	}
+	//return todo doesn't work - ability to start with controls disengaged
+	glfwWindow.SubscribeID(window.OnKeyUp, DefaultEvId, handleEsc)
 	glfwWindow.SubscribeID(window.OnKeyRepeat, DefaultEvId, handleKey)
 	glfwWindow.SubscribeID(window.OnKeyDown, DefaultEvId, handleKey)
 	glfwWindow.SubscribeID(window.OnCursor, DefaultEvId, handleMouseLook)

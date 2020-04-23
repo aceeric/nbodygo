@@ -1,15 +1,16 @@
-package runner
+package save
 
 import (
 	"math/rand"
 	"nbodygo/cmd/globals"
+	"nbodygo/cmd/runner"
 	"testing"
 	"time"
 )
 
 // Tests setting a queue as computed, and getting computed queue
 func TestComputed(t *testing.T) {
-	rqh := NewResultQueueHolder(1)
+	rqh := runner.NewResultQueueHolder(1)
 	rq, ok := rqh.NewResultQueue(5)
 	if ok {
 		rq.computed = true
@@ -26,7 +27,7 @@ func TestComputed(t *testing.T) {
 
 // tests getting computed queue when there are no computed queues
 func TestNoComputed(t *testing.T) {
-	rqh := NewResultQueueHolder(1)
+	rqh := runner.NewResultQueueHolder(1)
 	_, ok := rqh.NewResultQueue(5)
 	if !ok {
 		t.Error("Failed to create new Queue")
@@ -40,7 +41,7 @@ func TestNoComputed(t *testing.T) {
 
 // tests adding a queue when there is no capacity to add a queue
 func TestNoCapacity(t *testing.T) {
-	rqh := NewResultQueueHolder(1)
+	rqh := runner.NewResultQueueHolder(1)
 	_, ok := rqh.NewResultQueue(5)
 	if !ok {
 		t.Error("Failed to create new Queue")
@@ -53,7 +54,7 @@ func TestNoCapacity(t *testing.T) {
 
 // tests queues added and returned in order
 func TestOrder(t *testing.T) {
-	rqh := NewResultQueueHolder(3)
+	rqh := runner.NewResultQueueHolder(3)
 	// create three queues, setting all to computed
 	for i := 0; i < 3; i++ {
 		rq, _ := rqh.NewResultQueue(1)
@@ -78,7 +79,7 @@ func TestOrder(t *testing.T) {
 // test channel select allows 20 seconds for the test to succeed. This test uses a timed wait group pattern
 // as found in various places on the web
 func TestConcurrency(t *testing.T) {
-	rqh := NewResultQueueHolder(5)
+	rqh := runner.NewResultQueueHolder(5)
 	queuesToTest := 100
 	wg:= globals.NewTimedWaitGroup(3)
 	rand.Seed(time.Now().UnixNano())
@@ -94,7 +95,7 @@ func TestConcurrency(t *testing.T) {
 			} else {
 				//t.Logf("%v new queue added: %v", time.Now(), rq.queNum)
 				// simulate independent thread marking the queue as computed sometime after requesting the queue
-				go func(rq *ResultQueue) {
+				go func(rq *runner.ResultQueue) {
 					n := rand.Intn(500)
 					//t.Logf("%v mark computed sleeping %v millis", time.Now(), n)
 					time.Sleep(time.Millisecond * time.Duration(n))

@@ -1,8 +1,9 @@
-package runner
+package save
 
 import (
 	"nbodygo/cmd/cmap"
 	"nbodygo/cmd/interfaces"
+	"nbodygo/cmd/runner"
 	"sync"
 	"testing"
 	"time"
@@ -10,7 +11,7 @@ import (
 
 // basic body computer test
 func TestBodyComputer(t *testing.T) {
-	w := Worker{
+	w := runner.Worker{
 		killChan:    make(chan bool),
 		computation: make(chan Computation),
 		cpu:         0,
@@ -29,7 +30,7 @@ func TestBodyComputer(t *testing.T) {
 
 // basic work pool test
 func TestWorkPool(t *testing.T) {
-	wp := NewWorkPool(5, nil)
+	wp := runner.NewWorkPool(5, nil)
 	for i := 0; i < 20; i++ {
 		wp.submit(nil, nil)
 	}
@@ -46,7 +47,7 @@ func TestWorkPoolCustomFun(t *testing.T) {
 	const workers = 20000
 	workChan := make(chan int, workers * 1.1) // no blocking on the channel
 	//wp := NewWorkPool(20, func(*Computation) {
-    wp := NewWorkPool(20, func(*interfaces.SimBody, *cmap.ConcurrentMap)  {
+    wp := runner.NewWorkPool(20, func(*interfaces.SimBody, *cmap.ConcurrentMap)  {
 		workChan<- 1
 	})
 	go func() {

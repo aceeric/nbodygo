@@ -2,8 +2,8 @@ package main
 
 import (
 	"container/list"
+	"nbodygo/cmd/body"
 	"nbodygo/cmd/globals"
-	"nbodygo/cmd/interfaces"
 	"nbodygo/cmd/sim"
 	"nbodygo/internal/pkg/math32"
 	"os"
@@ -67,13 +67,13 @@ func main() {
 	}
 	// initialize a list of bodies representing the simulation, and optionally a worker function that
 	// will modify the body collection concurrently while the sim is running
-	var bodies []interfaces.SimBody
+	var bodies []body.SimBody
 	var simWorker sim.SimWorker
 
 	if len(vars.csvPath) > 0 {
 		bodies = sim.FromCsv(vars.csvPath, vars.bodyCount, vars.defaultCollisionBehavior, vars.defaultBodyColor)
 	} else if strings.EqualFold(vars.simName, emptySimName) {
-		bodies = []interfaces.SimBody{}
+		bodies = []body.SimBody{}
 	} else {
 		bodies, simWorker = sim.Generate(vars.simName, vars.bodyCount, vars.defaultCollisionBehavior,
 			vars.defaultBodyColor, vars.simArgs)

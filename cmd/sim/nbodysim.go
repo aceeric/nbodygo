@@ -1,9 +1,8 @@
 package sim
 
 import (
-	"nbodygo/cmd/collection"
+	"nbodygo/cmd/body"
 	"nbodygo/cmd/g3napp"
-	"nbodygo/cmd/interfaces"
 	"nbodygo/cmd/runner"
 	"nbodygo/internal/pkg/math32"
 	"time"
@@ -29,7 +28,7 @@ const (
 //
 type NBodySim struct {
 	// A list of bodies to start the simulation with
-	bodies []interfaces.SimBody
+	bodies []body.SimBody
 
 	// The number of workers to use for the computation runner
 	workers int
@@ -69,7 +68,7 @@ type NBodySim struct {
 //
 func (sim NBodySim) Run() {
 	// TODO start instrumentation
-	sbc := collection.NewSimBodyCollection(sim.bodies)
+	sbc := body.NewSimBodyCollection(sim.bodies)
 	rqh := runner.NewResultQueueHolder(defaultMaxResultQueues)
 	simDone := make(chan bool) // to shut down the G3N engine
 	if sim.render {
@@ -98,8 +97,13 @@ func waitForSimEnd(render bool, rqh *runner.ResultQueueHolder, simDone chan bool
 		<-simDone
 	} else {
 		for {
-			// TODO non-blocking key read
-			rqh.NextComputedQueue()
+			rq, ok := rqh.NextComputedQueue()
+			if ok {
+				dummy := float64(0)
+				for _, bri := range rq.Queue() {
+					dummy += bri.Radius()
+				}
+			}
 			time.Sleep(noRenderSleepMs)
 		}
 	}
@@ -109,7 +113,7 @@ func waitForSimEnd(render bool, rqh *runner.ResultQueueHolder, simDone chan bool
 // Builder pattern
 //
 type NBodySimBuilder interface {
-	Bodies([]interfaces.SimBody) NBodySimBuilder
+	Bodies([]body.SimBody) NBodySimBuilder
 	Workers(int) NBodySimBuilder
 	Scaling(float64) NBodySimBuilder
 	InitialCam(math32.Vector3) NBodySimBuilder
@@ -122,7 +126,7 @@ type NBodySimBuilder interface {
 }
 
 type nBodySimBuilder struct {
-	bodies     []interfaces.SimBody
+	bodies     []body.SimBody
 	workers    int
 	scaling    float64
 	initialCam math32.Vector3
@@ -133,7 +137,7 @@ type nBodySimBuilder struct {
 	frameRate  int
 }
 
-func (b nBodySimBuilder) Bodies(bodies []interfaces.SimBody) NBodySimBuilder {
+func (b nBodySimBuilder) Bodies(bodies []body.SimBody) NBodySimBuilder {
 	b.bodies = bodies
 	return b
 }
@@ -196,7 +200,7 @@ func newNBodySim(b nBodySimBuilder) NBodySim {
 func NewNBodySimBuilder() NBodySimBuilder {
 	// initialize a builder with reasonable defaults in case overrides are not provided
 	b := nBodySimBuilder{
-		bodies:     []interfaces.SimBody{}, // no bodies
+		bodies:     []body.SimBody{}, // no bodies
 		workers:    defaultWorkers,
 		scaling:    defaultTimeScaling,
 		initialCam: *math32.NewVector3(100, 100, 100),
