@@ -18,10 +18,8 @@ type ComputationRunner struct {
 	// metrics
 	iterations, computations uint
 	submits, waits           uint
-	submitMillis             int64
-	waitMillis               int64
-	startTime                time.Time
-	stopTime                 time.Time
+	submitMillis, waitMillis int64
+	startTime, stopTime      time.Time
 	goroutines               int
 	// the work pool
 	wp *WorkPool
@@ -30,9 +28,9 @@ type ComputationRunner struct {
 	// supports test - stop after this many iterations
 	maxIteration int
 	// true if running
-	running           bool
-	// applied to the force and velocity by the body force computer
-	timeScaling       float64
+	running bool
+	// applied to the force and velocity by the body force computer as a smoothing factor
+	timeScaling float64
 	// holds computed results for the render engine
 	resultQueueHolder ResultQueueHolder
 }
@@ -57,11 +55,11 @@ func (r *ComputationRunner) PrintStats() {
 //
 // args:
 //   workerCnt         Number of workers in the pool
-//   timeScaling       Multiplier for force and velocity calc
+//   timeScaling       Multiplier for force and velocity calc - determines sim "speed"
 //   resultQueueHolder Holds computed results
 //
 func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder ResultQueueHolder,
-	cc body.SimBodyCollection) *ComputationRunner {
+	cc body.SimBodyCollection) *ComputationRunner { // TODO MAKE THIS AN INTERFACE
 	r := ComputationRunner{
 		stop:              make(chan bool),
 		workerCnt:         workerCnt,
@@ -74,7 +72,8 @@ func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder 
 }
 
 //
-// Supports debugging - sets the max iterations for the runner
+// Supports debugging - sets the max iterations for the runner. After this many iterations the
+// runner will shut down
 //
 func (r *ComputationRunner) SetMaxIterations(maxIteration int) *ComputationRunner {
 	r.maxIteration = maxIteration
@@ -106,6 +105,20 @@ func (r *ComputationRunner) SetWorkers(workerCnt int) {
 }
 
 //
+// returns the time scaling factor in the runner
+//
+func (r *ComputationRunner) TimeScaling() float64 {
+	return r.timeScaling
+}
+
+//
+// returns the count of workers in the worker pool
+//
+func (r *ComputationRunner) WorkerCount() int {
+	return r.workerCnt
+}
+
+//
 // Main runner. A go routine that runs until stopped. Runs one computation, and monitors
 // the stop channel in a loop
 //
@@ -128,11 +141,12 @@ func (r *ComputationRunner) run() {
 	r.stopTime = time.Now()
 	r.stop <- true
 }
+
 //
 // Runs one computation. Executes a nested loop:
 //   for each body
 //     for each other-body
-//       compute the force on body from other-body
+//       compute the force on body from other-body and detect collisions
 //
 // Each body from the outer loop is submitted into the worker pool, and has access to the whole body
 // collection . Therefore, each body is free to update its own force without thread synchronization on the
@@ -167,9 +181,7 @@ func (r *ComputationRunner) runOneComputation() {
 	r.wp.wait()
 	r.waits++
 	r.waitMillis += time.Now().Sub(start).Milliseconds()
-
 	r.sbc.ProcessMods()
-
 	r.sbc.IterateOnce(func(c body.SimBody) {
 		ri := c.Update(r.timeScaling)
 		rq.AddRenderable(ri)

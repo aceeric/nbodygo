@@ -3,6 +3,7 @@ package sim
 import (
 	"nbodygo/cmd/body"
 	"nbodygo/cmd/g3napp"
+	"nbodygo/cmd/grpcserver"
 	"nbodygo/cmd/runner"
 	"nbodygo/internal/pkg/math32"
 	"time"
@@ -51,6 +52,7 @@ type NBodySim struct {
 	resolution [2]int
 }
 
+//
 // Simulation runner
 //
 // - Initializes instrumentation which - depending on TODO what is Go equivalent of JVM properties - could be
@@ -74,16 +76,16 @@ func (sim NBodySim) Run() {
 	if sim.render {
 		g3napp.StartG3nApp(&sim.initialCam, sim.resolution[0], sim.resolution[1], rqh, simDone)
 	}
-	cr := runner.NewComputationRunner(sim.workers, sim.scaling, rqh, sbc).Start()
-	// TODO start gRPC server
+	crunner := runner.NewComputationRunner(sim.workers, sim.scaling, rqh, sbc).Start()
+	grpcserver.Start(newGrpcSimCb(sbc, crunner, rqh))
 	if sim.simWorker != nil {
 		go sim.simWorker(sbc)
 	}
 	waitForSimEnd(sim.render, &rqh, simDone)
-	// TODO stop gRPC server
-	cr.Stop()
+	grpcserver.Stop()
+	crunner.Stop()
 	// TODO stop instrumentation
-	cr.PrintStats()
+	crunner.PrintStats()
 }
 
 //

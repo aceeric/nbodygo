@@ -18,12 +18,13 @@ TODO
 
 - https://developers.google.com/protocol-buffers/docs/reference/go-generated
 - gRPC server/client
-- how go handle replacement for java synchronized keyword
+- subsume does not appear to be working
+- consider removing interfaces: SimBody, Renderable, SimBodyCollection?
+- g3n directory structure (pkg?)
 - metrics
 - Bazel (or Make?)
 - enums
 - logging
-- id generator
 - tests
 - make the code idiomatic
 - todos

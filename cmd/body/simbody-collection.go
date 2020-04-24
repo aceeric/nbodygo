@@ -12,7 +12,7 @@ import (
 type simBodyCollection struct {
 	// this is the body array that all goroutines will iterate
 	arr    []SimBody
-	// todo replaces above
+	// a list of concurrent adds, as well as collisions accumulated during each compute cycle
 	events *list.List
 	// concurrency
 	lock   sync.Mutex
@@ -43,8 +43,9 @@ func NewSimBodyCollection(bodies []SimBody) SimBodyCollection {
 }
 
 //
-// supports post-processing events that would cause race conditions if done concurrently, or would
-// require synchronization which would degrade performance
+// supports post-processing events that would cause race conditions or - would require synchronization - if
+// done concurrently. Synchronization in the tight nested body computation loop has a prohibitive impact
+// on performance
 //
 func (sbc *simBodyCollection) Enqueue(ev Event) {
 	sbc.evCh<- ev
@@ -53,7 +54,7 @@ func (sbc *simBodyCollection) Enqueue(ev Event) {
 //
 // Go routine that supports concurrent (deferred) adds and modifications to body state. Receives events
 // from the 'Enqueue' function through the 'evCh' channel. Adds events to an internal list, which is handled
-// by a call to the 'ProcessMods' function
+// by a call to the 'ProcessMods' function. (See computation runner.)
 //
 func (sbc *simBodyCollection) handleEvents() {
 	for {
@@ -83,15 +84,9 @@ func (sbc *simBodyCollection) IterateOnce(c IterationConsumer) {
 // Gets the number of bodies in the array
 //
 func (sbc *simBodyCollection) Count() int {
+	sbc.lock.Lock()
+	defer sbc.lock.Unlock()
 	return len(sbc.arr)
-}
-
-//
-// Debugging aid - returns the 1-up number of the computation cycle to help diagnose
-// event concurrency like body collisions
-//
-func (sbc *simBodyCollection) GetCycle() int {
-	return sbc.cycle
 }
 
 //
@@ -113,8 +108,10 @@ func (sbc *simBodyCollection) GetArrayCopy() *[]SimBody {
 	return &arrCopy
 }
 
-// TODO just do this in the Cycle function - then don't have to worry about event list between
-// calls to this and Cycle....
+//
+// Walks the internal 'events' list and processes all enqueued events. These are events that require
+// changing body state in such a way that would require synchronization to avoid race conditions.
+//
 func (sbc *simBodyCollection) ProcessMods() {
 	sbc.lock.Lock()
 	if sbc.events.Len() == 0 {
@@ -125,7 +122,7 @@ func (sbc *simBodyCollection) ProcessMods() {
 	var prev *list.Element = nil
 	for e := sbc.events.Front(); e != nil; e = e.Next() {
 		if prev != nil {
-			sbc.events.Remove(prev) // TODO remove when called from Cycle
+			sbc.events.Remove(prev)
 		}
 		if e.Value.(Event).evType != AddEvent {
 			evs = append(evs, e.Value.(Event))
@@ -138,6 +135,9 @@ func (sbc *simBodyCollection) ProcessMods() {
 	}
 }
 
+//
+// Returns the count of events in the internal 'events' list that are Adds
+//
 func (sbc *simBodyCollection) countAdds() int {
 	cnt := 0
 	for e := sbc.events.Front(); e != nil; e = e.Next() {
@@ -149,7 +149,9 @@ func (sbc *simBodyCollection) countAdds() int {
 }
 
 //
-// Called by computation runner to prepare the body collection for another compute cycle.
+// Called by computation runner to prepare the body collection for another compute cycle. Removes refs
+// to bodies that have been set not to exist, and resolves collisions and fragmentations which have to be
+// done in a single thread to avoid race conditions
 //
 func (sbc *simBodyCollection) Cycle() {
 	cnt := 0

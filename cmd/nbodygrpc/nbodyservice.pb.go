@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: nbodyservice.proto
 
-package grpc
+package nbodygrpc
 
 import (
 	context "context"

@@ -4,111 +4,6 @@ import (
 	"nbodygo/cmd/renderable"
 )
 
-/*
-//
-// A result queue holder holds a fixed size queue of result queues allowing the computation
-// runner to slightly outrun the render engine
-//
-type ResultQueueHolder struct {
-	maxQueues int
-	queueNum  uint
-	queues *list.List // queue of ResultQueue
-	m sync.Mutex
-}
-
-//
-// A result queue holds an array of renderable objects
-//
-type ResultQueue struct {
-	computed bool
-	queNum uint
-	queue []interfaces.Renderable
-}
-
-//
-// Returns a ref to a queue in a result queue
-//
-func (rq *ResultQueue) Queue() []interfaces.Renderable {
-	return rq.queue
-}
-
-//
-// Creates and returns a new result queue with passed capacity. Note that
-// the underlying array might not actually be filled and so some of the pointers in the
-// array could be null. Caller has to handle that
-//
-func newResultQueue(queNum uint, capacity int) *ResultQueue  {
-	return &ResultQueue{
-		computed: false,
-		queNum:   queNum,
-		queue:    make([]interfaces.Renderable, capacity),
-	}
-}
-
-//
-// Adds the passed renderable to the queue
-//
-func (rq *ResultQueue) AddRenderable(info interfaces.Renderable) {
-	rq.queue = append(rq.queue, info)
-}
-
-//
-// Initializes a new result queue holder with capacity = 'maxQueues'
-//
-func NewResultQueueHolder(maxQueues int) ResultQueueHolder {
-	return ResultQueueHolder {
-		maxQueues: maxQueues,
-		queues: list.New(),
-		m: sync.Mutex{},
-	}
-}
-
-//
-// Creates and returns a new queue
-//
-// return: second arg false if full and can't add, else true
-//
-func (rqh *ResultQueueHolder) NewResultQueue() (*ResultQueue, bool) {
-	rqh.m.Lock()
-	defer rqh.m.Unlock()
-	if rqh.queues.Len() >= rqh.maxQueues {
-		return nil, false
-	}
-	queueNum := rqh.queueNum
-	rqh.queueNum++
-	rq := newResultQueue(queueNum, 0)
-	rqh.queues.PushFront(rq)
-	return rq, true
-}
-
-//
-// Returns a computed queue in FIFO order. Second arg = false if no computed queues, else true
-//
-func (rqh *ResultQueueHolder) NextComputedQueue() (*ResultQueue, bool) {
-	rqh.m.Lock()
-	defer rqh.m.Unlock()
-	rq := rqh.queues.Back()
-	if rq != nil && rq.Value.(*ResultQueue).computed {
-		rqh.queues.Remove(rq)
-		return rq.Value.(*ResultQueue), true
-	}
-	return nil, false
-}
-
-//
-// Sets the last out queue to computed
-//
-func (rqh *ResultQueueHolder) SetComputed() {
-	rqh.m.Lock()
-	defer rqh.m.Unlock()
-	rq := rqh.queues.Back()
-	if rq != nil {
-		rq.Value.(*ResultQueue).computed = true
-	}
-}
-*/
-
-
 //
 // A result queue holder holds a fixed size queue of result queues allowing the computation
 // runner to slightly outrun the render engine
@@ -120,7 +15,8 @@ type ResultQueueHolder struct {
 }
 
 //
-// A result queue holds an array of renderable objects
+// A result queue holds an array of renderable objects - each being the result of a computation
+// cycle with updated position, etc.
 //
 type ResultQueue struct {
 	computed bool
@@ -154,7 +50,9 @@ func (rq *ResultQueue) AddRenderable(info renderable.Renderable) {
 }
 
 //
-// Adds the passed renderable to the queue
+// Sets the passed queue as computed and adds it to the result queue holder. As a result,
+// the next all to 'NextComputedQueue' can return it (eventually, if other computed queues
+// are ahead of it)
 //
 func (rqh *ResultQueueHolder) SetComputed(queue *ResultQueue) {
 	queue.computed = true
@@ -172,9 +70,10 @@ func NewResultQueueHolder(maxQueues int) ResultQueueHolder {
 }
 
 //
-// Creates and returns a new queue
+// Creates and returns a new queue if there is capacity
 //
-// return: second arg false if full and can't add, else true
+// return: if there is capacity, returns a pointer to queue and true. If no
+// capacity, returns nil and false
 //
 func (rqh *ResultQueueHolder) NewResultQueue() (*ResultQueue, bool) {
 	if len(rqh.ch) == cap(rqh.ch) {
@@ -186,7 +85,10 @@ func (rqh *ResultQueueHolder) NewResultQueue() (*ResultQueue, bool) {
 }
 
 //
-// Returns a computed queue in FIFO order, or second arg = false if no computed queues, else true
+// Returns a computed queue in FIFO order
+//
+// return: if a computed queue is available, returns a pointer to queue and true. If no
+// queues are available, returns nil and false
 //
 func (rqh *ResultQueueHolder) NextComputedQueue() (*ResultQueue, bool) {
 	select {
@@ -197,3 +99,9 @@ func (rqh *ResultQueueHolder) NextComputedQueue() (*ResultQueue, bool) {
 	}
 }
 
+//
+// returns the max number of queues supported by the result queue holder
+//
+func (rqh *ResultQueueHolder) MaxQueues() int {
+	return rqh.maxQueues
+}

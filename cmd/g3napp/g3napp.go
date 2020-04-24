@@ -27,7 +27,7 @@ type G3nApp struct {
 	// G3N managed
 	app   *app.Application
 	scene *core.Node
-	// result queue holder provides list of renderable objects
+	// result queue holder provides lists of renderable objects each frame
 	holder runner.ResultQueueHolder
 	// fly camera
 	flyCam *flycam.FlyCam
@@ -95,8 +95,8 @@ func renderLoop(renderer *renderer.Renderer, _ time.Duration) {
 }
 
 //
-// Consumes the result queue holder to get a list of bodies and uses the list to update the scene
-// graph
+// Consumes the result queue holder to get a list of bodies and uses the list to update the
+// G3N scene graph
 //
 func updateSim() {
 	rq, ok := g3nApp.holder.NextComputedQueue()

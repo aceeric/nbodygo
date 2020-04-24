@@ -13,7 +13,8 @@ Provides a "Fly By" camera implementation on top of the G3N engine. Functionalit
  ESC     = Exit simulation
 
 Thanks to: https://github.com/JoeyDeVries/LearnOpenGL for much of this functionality. According to the attribution
-page there, no license / copyright is required if content from that source is used in the public domain.
+page there, no license / copyright presentation is required if content from that source is used in the
+public domain.
 */
 package flycam
 

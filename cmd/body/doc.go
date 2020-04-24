@@ -1,5 +1,10 @@
 /*
-This package provides a basic wrapper around the body collection for the simulation. This project
+TODO docs
+
+
+SimBodyCollection
+
+The SimBodyCollection provides a basic wrapper around the body collection for the simulation. This project
 is a port from Java - and the Java version used a ConcurrentLinkedQueue - which is a concurrent
 non-blocking collection with great performance.
 
@@ -26,4 +31,4 @@ It was not a goal of this project to write a collection class but I was force to
 unable to find a non-blocking concurrent collection package with performance equivalent to Java's
 ConcurrentLinkedQueue. (I'll keep searching.)
 */
-package collection
+package body

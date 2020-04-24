@@ -27,7 +27,4 @@ type SimBodyCollection interface {
 
 	// Gets count of bodies
 	Count() int
-
-	// supports debugging
-	GetCycle() int
 }

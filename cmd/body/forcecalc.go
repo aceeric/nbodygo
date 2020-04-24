@@ -1,14 +1,14 @@
 package body
 
-type ForceCalcResult struct {
+type forceCalcResult struct {
 	dist float64
 	collided bool
 }
 
-func NoCollision() ForceCalcResult {
-	return ForceCalcResult{0, false}
+func noCollision() forceCalcResult {
+	return forceCalcResult{0, false}
 }
 
-func Collision(dist float64) ForceCalcResult {
-	return ForceCalcResult{dist, true}
+func collision(dist float64) forceCalcResult {
+	return forceCalcResult{dist, true}
 }

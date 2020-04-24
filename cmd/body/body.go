@@ -6,7 +6,6 @@ import (
 	"nbodygo/cmd/renderable"
 	"nbodygo/cmd/util"
 	"sync"
-	"sync/atomic"
 )
 
 const (
@@ -18,28 +17,51 @@ const (
 	maxFrags         float64 = 2000
 )
 
+var resCo = R
+//
+// Maintains fragmentation state as a body is fragmenting potentially across compute cycles
+//
+type fragInfo struct {
+	radius, newRadius, mass float64
+	fragments               int
+	curPos                  util.Vector3
+}
+
+//
+// The simulation body
+//
 type Body struct {
 	id                                int
 	name                              string
 	class                             string
 	fragmenting                       bool
 	x, y, z, vx, vy, vz, radius, mass float64
-	fragFactor, fragmentationStep     float64
-	collisionBehavior                 globals.CollisionBehavior
-	bodyColor                         globals.BodyColor
-	R                                 float64 // TODO R should be "class" scope
-	isSun                             bool
-	intensity                         float64
-	exists                            bool
-	lock                              int32
-	withTelemetry                     bool
-	pinned                            bool
-	fragInfo                          FragInfo
-	fx, fy, fz                        float64
-	collided                          bool
+	fragFactor, fragmentationStep float64
+	collisionBehavior             globals.CollisionBehavior
+	bodyColor                     globals.BodyColor
+//	R                             float64 // TODO R should be "class" scope
+	isSun                         bool
+	intensity                     float64
+	exists                        bool
+	withTelemetry                 bool
+	pinned                        bool
+	fragInfo                      fragInfo
+	fx, fy, fz                    float64
+	collided                      bool
 }
 
-// creates a body that exists with hard-coded values and properties typically of interest specified as function args
+func SetRestitutionCoefficient(r float64) {
+	resCo = r
+}
+
+func RestitutionCoefficient() float64 {
+	return resCo
+}
+
+//
+// creates a body that exists with hard-coded values and properties typically of
+// interest specified as function args
+//
 func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float64, collisionBehavior globals.CollisionBehavior,
 	bodyColor globals.BodyColor, fragFactor, fragmentationStep float64, withTelemetry bool, name, class string,
 	pinned bool) Body {
@@ -64,14 +86,12 @@ func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float64, collisionBehavio
 		fragmentationStep: fragmentationStep,
 		collisionBehavior: collisionBehavior,
 		bodyColor:         bodyColor,
-		R:                 R,
 		isSun:             false,
 		intensity:         0,
 		exists:            true,
-		lock:              0,
 		withTelemetry:     withTelemetry,
 		pinned:            pinned,
-		fragInfo:          FragInfo{},
+		fragInfo:          fragInfo{},
 	}
 	return b
 }
@@ -80,14 +100,6 @@ func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float64, collisionBehavio
 
 func (b *Body) mod() bool {
 	return false // TODO
-}
-
-func (b *Body) tryLock() bool {
-	return atomic.CompareAndSwapInt32(&b.lock, 0, 1)
-}
-
-func (b *Body) unLock() {
-	atomic.CompareAndSwapInt32(&b.lock, 1, 0)
 }
 
 // begin SimBody and Renderable interface implementation(s)
@@ -110,7 +122,7 @@ func (b *Body) Update(timeScaling float64) renderable.Renderable {
 	if !b.exists {
 		return renderable.NewFromRenderable(b)
 	}
-	if !b.collided {
+	if !b.collided { // KEEP!
 		b.vx += timeScaling * b.fx / b.mass
 		b.vy += timeScaling * b.fy / b.mass
 		b.vz += timeScaling * b.fz / b.mass
@@ -133,34 +145,54 @@ func (b *Body) Update(timeScaling float64) renderable.Renderable {
 func (b *Body) Compute(sbc SimBodyCollection) {
 	if b.fragmenting {
 		b.fragment(sbc)
-	} else {
-		b.fx, b.fy, b.fz = 0, 0, 0
-		sbc.IterateOnce(func(c SimBody) {
-			otherBody := c.(*Body)
-			if !otherBody.exists || b.fragmenting {
-				return
-			}
-			if b != otherBody && otherBody.exists && !otherBody.fragmenting {
-				// todo metrics
-				result := b.calcForceFrom(otherBody)
-				if result.collided {
-					if b.collisionBehavior == globals.Elastic && otherBody.collisionBehavior == globals.Elastic {
-						sbc.Enqueue(NewCollision(b, otherBody))
-					} else if b.collisionBehavior == globals.Subsume || otherBody.collisionBehavior == globals.Subsume {
-						if b.radius > otherBody.radius && result.dist + otherBody.radius >= b.radius * 1.2 {
-							sbc.Enqueue(NewSubsume(b, otherBody))
-						} else if b.radius <= otherBody.radius && result.dist + b.radius >= otherBody.radius * 1.2 {
-							sbc.Enqueue(NewSubsume(otherBody, b))
-						}
+		return
+	}
+	b.fx, b.fy, b.fz = 0, 0, 0
+	sbc.IterateOnce(func(c SimBody) {
+		otherBody := c.(*Body)
+		if !otherBody.exists || b.fragmenting {
+			return
+		}
+		if b != otherBody && otherBody.exists && !otherBody.fragmenting {
+			// todo metrics
+			result := b.calcForceFrom(otherBody)
+			if result.collided {
+				if (b.collisionBehavior == globals.Elastic || b.collisionBehavior == globals.Fragment) &&
+					(otherBody.collisionBehavior == globals.Elastic || otherBody.collisionBehavior == globals.Fragment){
+					sbc.Enqueue(NewCollision(b, otherBody))
+				} else if b.collisionBehavior == globals.Subsume || otherBody.collisionBehavior == globals.Subsume {
+					if b.radius > otherBody.radius && result.dist + otherBody.radius >= b.radius * 1.2 {
+						sbc.Enqueue(NewSubsume(b, otherBody))
+					} else if b.radius <= otherBody.radius && result.dist + b.radius >= otherBody.radius * 1.2 {
+						sbc.Enqueue(NewSubsume(otherBody, b))
 					}
 				}
 			}
-		})
-	}
+		}
+	})
 }
 
-// end SimBody interface implementation
-
+//
+// Accumulates gravitational force on this body from other body. Also checks proximity for collision
+//
+// returns a 'forceCalcResult' with 'collided' true if this body collided with otherBody,
+// else false.
+//
+func (b *Body) calcForceFrom(otherBody *Body) forceCalcResult {
+	dx := otherBody.x - b.x
+	dy := otherBody.y - b.y
+	dz := otherBody.z - b.z
+	dist := math.Sqrt(dx*dx + dy*dy + dz*dz)
+	if dist > b.radius + otherBody.radius {
+		force := G * b.mass * otherBody.mass / (dist * dist)
+		b.fx += force * dx / dist
+		b.fy += force * dy / dist
+		b.fz += force * dz / dist
+		return noCollision()
+	} else {
+		return collision(dist)
+	}
+}
 
 func (b *Body) ResolveSubsume(otherBody SimBody) {
 	ob := otherBody.(*Body)
@@ -182,130 +214,6 @@ func (b *Body) ResolveSubsume(otherBody SimBody) {
 	// TODO LOGGER
 }
 
-/* TODO FIX THIS
-func (b *Body) CopyOf() *Body {
-	return &Body{
-		b.id,
-		b.name,
-		b.class,
-		b.collided,
-		b.fragmenting,
-		b.x,
-		b.y,
-		b.z,
-		b.vx,
-		b.vy,
-		b.vz,
-		b.radius,
-		b.mass,
-		b.fx,
-		b.fy,
-		b.fz,
-		b.fragFactor,
-		b.fragmentationStep,
-		b.collisionBehavior,
-		b.bodyColor,
-		b.R,
-		b.isSun,
-		b.intensity,
-		b.exists,
-		b.lock,
-		b.withTelemetry,
-		b.pinned,
-		b.fragInfo,
-	}
-}
-*/
-
-func (b *Body) calcForceFrom(otherBody *Body) ForceCalcResult {
-	dx := otherBody.x - b.x
-	dy := otherBody.y - b.y
-	dz := otherBody.z - b.z
-	dist := math.Sqrt(dx*dx + dy*dy + dz*dz)
-	if b.collided || dist > b.radius+otherBody.radius {
-		force := G * b.mass * otherBody.mass / (dist * dist)
-		b.fx += force * dx / dist
-		b.fy += force * dy / dist
-		b.fz += force * dz / dist
-	} else if dist <= b.radius+otherBody.radius {
-		return Collision(dist)
-	}
-	return NoCollision()
-}
-
-func (b *Body) calcForceFromZ(otherBody *Body) ForceCalcResult {
-	dx := otherBody.x - b.x
-	dy := otherBody.y - b.y
-	dz := otherBody.z - b.z
-	dist := math.Sqrt(dx*dx + dy*dy + dz*dz)
-	if dist > b.radius+otherBody.radius {
-		force := G * b.mass * otherBody.mass / (dist * dist)
-		b.fx += force * dx / dist
-		b.fy += force * dy / dist
-		b.fz += force * dz / dist
-	} else {
-		if b.tryLock() {
-			defer b.unLock()
-			if b.collided {
-				force := G * b.mass * otherBody.mass / (dist * dist)
-				b.fx += force * dx / dist
-				b.fy += force * dy / dist
-				b.fz += force * dz / dist
-			} else {
-				return Collision(dist)
-			}
-		}
-	}
-	return NoCollision()
-}
-/*
-func (b *Body) resolveCollisionOrig(dist float64, otherBody *Body) {
-	if b.collisionBehavior == globals.Subsume || otherBody.collisionBehavior == globals.Subsume {
-		if b.radius > otherBody.radius {
-			b.subsume(dist, otherBody)
-			fmt.Printf("%v, this subsume other\n", time.Now())
-		} else {
-			otherBody.subsume(dist, b)
-			fmt.Printf("%v, other subsume this\n", time.Now())
-		}
-	} else if (b.collisionBehavior == globals.Elastic || b.collisionBehavior == globals.Fragment) &&
-		(otherBody.collisionBehavior == globals.Elastic || otherBody.collisionBehavior == globals.Fragment) {
-		r := b.calcElasticCollision(otherBody)
-		if r.collided {
-			if b.tryLock() {
-				otherLock := otherBody.tryLock()
-				if otherLock && b.exists && otherBody.exists {
-					fr := b.shouldFragment(otherBody, r)
-					if fr.shouldFragment {
-						b.doFragment(otherBody, fr)
-						fmt.Printf("%v, initiate fragment\n", time.Now())
-					} else {
-						b.doElastic(otherBody, r)
-					}
-				}
-				b.unLock()
-				if otherLock {
-					otherBody.unLock()
-				}
-			}
-			// RACE COND MOVE INSIDE
-			//if b.collided {
-			//	// TODO LOGGING
-			//}
-		}
-	}
-}
-*/
-/*
-force calc
-  calc collision
-  if collided
-    list of collided bodies.add
-update
-  if exists
-    for each collision in list
-      resolve collision - set me and other collided
-*/
 func (b *Body) ResolveCollision(otherBody SimBody) {
 	ob := otherBody.(*Body)
 	if ! b.exists || !ob.exists {
@@ -315,19 +223,17 @@ func (b *Body) ResolveCollision(otherBody SimBody) {
 		(ob.collisionBehavior == globals.Elastic || ob.collisionBehavior == globals.Fragment) {
 		r := b.calcElasticCollision(ob)
 		if r.collided {
-			b.vx = (r.vx1-r.vx_cm)*R + r.vx_cm
-			b.vy = (r.vy1-r.vy_cm)*R + r.vy_cm
-			b.vz = (r.vz1-r.vz_cm)*R + r.vz_cm
-			ob.vx = (r.vx2-r.vx_cm)*R + r.vx_cm
-			ob.vy = (r.vy2-r.vy_cm)*R + r.vy_cm
-			ob.vz = (r.vz2-r.vz_cm)*R + r.vz_cm
-			b.collided = true
-			ob.collided = true
+			fcr := b.shouldFragment(ob, r)
+			if fcr.shouldFragment {
+				b.doFragment(ob, fcr)
+			} else {
+				b.doElastic(ob, r)
+			}
 		}
 	}
 }
 
-func (b *Body) doElastic(otherBody *Body, r CollisionCalcResult) {
+func (b *Body) doElastic(otherBody *Body, r collisionCalcResult) {
 	b.vx = (r.vx1-r.vx_cm)*R + r.vx_cm
 	b.vy = (r.vy1-r.vy_cm)*R + r.vy_cm
 	b.vz = (r.vz1-r.vz_cm)*R + r.vz_cm
@@ -338,7 +244,12 @@ func (b *Body) doElastic(otherBody *Body, r CollisionCalcResult) {
 	otherBody.collided = true
 }
 
-func (b *Body) calcElasticCollision(otherBody *Body) CollisionCalcResult {
+//
+// Elastic collision algorithm from https://www.plasmaphysics.org.uk/programs/coll3d_cpp.htm
+// The function is preserved as close to the original as possible, hence the snake case names
+// rather than camel case.
+//
+func (b *Body) calcElasticCollision(otherBody *Body) collisionCalcResult {
 	var r12, m21, d, v, theta2, phi2, st, ct, sp, cp, vx1r, vy1r, vz1r, fvz1r,
 	thetav, phiv, dr, alpha, beta, sbeta, cbeta, t, a, dvz2,
 	vx2r, vy2r, vz2r, x21, y21, z21, vx21, vy21, vz21, vx_cm, vy_cm, vz_cm float64
@@ -382,12 +293,12 @@ func (b *Body) calcElasticCollision(otherBody *Body) CollisionCalcResult {
 	// prevent bodies overlapping - that would take way too much compute power
 
 	// return if distance between balls smaller than sum of radii
-	// if (d < r12) {return NoElasticCollision()}
+	// if (d < r12) {return noElasticCollision()}
 
 	// return if relative speed = 0
 	if v == 0 {
 		// TODO LOGGING
-		return NoElasticCollision()
+		return noElasticCollision()
 	}
 	// shift coordinate system so that ball 1 is at the origin
 	x2 = x21
@@ -435,7 +346,7 @@ func (b *Body) calcElasticCollision(otherBody *Body) CollisionCalcResult {
 	// if balls do not collide, do nothing
 	if thetav > math.Pi/2 || math.Abs(dr) > 1 {
 		// TODO LOGGING
-		return NoElasticCollision()
+		return noElasticCollision()
 	}
 	// calculate impact angles if balls do collide
 	alpha = math.Asin(-dr)
@@ -470,7 +381,7 @@ func (b *Body) calcElasticCollision(otherBody *Body) CollisionCalcResult {
 	// rotate the velocity vectors back and add the initial velocity
 	// vector of ball 2 to retrieve the original coordinate system
 
-	return ElasticCollision(
+	return elasticCollision(
 		ct*cp*vx1r-sp*vy1r+st*cp*vz1r+vx2,
 		ct*sp*vx1r+cp*vy1r+st*sp*vz1r+vy2,
 		ct*vz1r-st*vx1r+vz2,
@@ -478,99 +389,6 @@ func (b *Body) calcElasticCollision(otherBody *Body) CollisionCalcResult {
 		ct*sp*vx2r+cp*vy2r+st*sp*vz2r+vy2,
 		ct*vz2r-st*vx2r+vz2,
 		vx_cm, vy_cm, vz_cm)
-}
-
-func (b *Body) shouldFragment(otherBody *Body, r CollisionCalcResult) FragmentationCalcResult {
-	if !(b.collisionBehavior == globals.Fragment ||
-		otherBody.collisionBehavior == globals.Fragment) {
-		return NoFragmentation()
-	}
-	vThis := b.vx + b.vy + b.vz
-	dvThis :=
-		math.Abs(b.vx-((r.vx1-r.vx_cm)*R+r.vx_cm)) +
-			math.Abs(b.vy-((r.vy1-r.vy_cm)*R+r.vy_cm)) +
-			math.Abs(b.vz-((r.vz1-r.vz_cm)*R+r.vz_cm))
-
-	vThisFactor := dvThis / math.Abs(vThis)
-	vOther := otherBody.vx + otherBody.vy + otherBody.vz
-	dvOther :=
-		math.Abs(otherBody.vx-((r.vx2-r.vx_cm)*R+r.vx_cm)) +
-			math.Abs(otherBody.vy-((r.vy2-r.vy_cm)*R+r.vy_cm)) +
-			math.Abs(otherBody.vz-((r.vz2-r.vz_cm)*R+r.vz_cm))
-
-	vOtherFactor := dvOther / math.Abs(vOther)
-
-	if b.collisionBehavior == globals.Fragment && vThisFactor > b.fragFactor ||
-		otherBody.collisionBehavior == globals.Fragment && vOtherFactor > otherBody.fragFactor {
-		return Fragmentation(vThisFactor, vOtherFactor)
-	}
-	return NoFragmentation()
-}
-
-func (b *Body) doFragment(otherBody *Body, fr FragmentationCalcResult) {
-	if b.collisionBehavior == globals.Fragment && fr.thisFactor > b.fragFactor {
-		b.initiateFragmentation(fr.thisFactor)
-	}
-	if otherBody.collisionBehavior == globals.Fragment && fr.otherFactor > otherBody.fragFactor {
-		otherBody.initiateFragmentation(fr.otherFactor)
-	}
-}
-
-// TODO clean up locking calls
-func (b *Body) initiateFragmentation(fragFactor float64) {
-	var fragDelta float64
-	if b.fragFactor > 10 {
-		fragDelta = 10
-	} else {
-		fragDelta = fragFactor - b.fragFactor
-	}
-	fragments := math.Min(fragDelta*b.fragmentationStep, maxFrags)
-	if fragments <= 1 {
-		b.collisionBehavior = globals.Fragment
-		return
-	}
-	b.fragmenting = true
-	curPos := util.Vector3{X: b.x, Y: b.y, Z: b.z}
-	volume := fourThirdsPi * b.radius * b.radius * b.radius
-	newRadius := math.Max(math.Pow(((volume/fragments)*3)/fourPi, 1/3), .1)
-	newMass := b.mass / fragments
-	b.fragInfo = FragInfo{b.radius, newRadius, newMass, int(fragments), curPos}
-}
-
-// TODO clean up locking calls
-func (b *Body) fragment(sbc SimBodyCollection) {
-	cnt := 0
-	for ; b.fragInfo.fragments > 0; {
-		b.fragInfo.fragments--
-		v := util.GetVectorEven(b.fragInfo.curPos, b.fragInfo.radius*.9)
-		toAdd := &Body{
-			id:   NextId(),
-			name: b.name, class: b.class,
-			x: v.X, y: v.Y, z: v.Z, vx: b.vx, vy: b.vy, vz: b.vz, mass: b.fragInfo.mass, radius: b.fragInfo.newRadius,
-			fragFactor: 0, fragmentationStep: 0,
-			collisionBehavior: globals.Elastic, bodyColor: b.bodyColor,
-			R:     R, // todo fix this
-			isSun: false, exists: true,
-			withTelemetry: false, pinned: false,
-		}
-		sbc.Enqueue(NewAdd(toAdd))
-		cnt++
-		if cnt > maxFragsPerCycle {
-			break
-		}
-	}
-	if b.fragInfo.fragments <= 0 {
-		// turn this instance into a fragment
-		b.mass = b.fragInfo.mass
-		b.radius = b.fragInfo.newRadius
-		b.collisionBehavior = globals.Elastic
-		b.fragmenting = false
-		// TODO DON'T KNOW HOW TO CHANGE RADIUS IN G3N SO JUST SET IT NOT EXISTS FOR NOW
-		b.exists = false
-	} else {
-		// shrink the b a little each time
-		b.radius = b.radius * .9
-	}
 }
 
 var idGenerator = struct {

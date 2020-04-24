@@ -35,14 +35,14 @@ const (
 )
 
 //
-// Generates and returns a simulation. The args are passed directly through to the sim gneration function
+// Generates and returns a simulation. The args are passed directly through to the sim generation function
 // and might be ignored by that function if not applicable.
 //
 // args:
 //  simName           The name of the sim. This must be a function name in this package. E.g. "Sim1". The
 //                    matching function name is obtained using reflection
 //  bodyCount         The number of bodies
-//  collisionBehavior Collision behavior if not explicitly defined by the sim
+//  collisionBehavior collision behavior if not explicitly defined by the sim
 //	defaultBodyColor  " body color
 //	simArgs           Some sims take args to customize their behavior. Refer to the individual sim functions
 //                    for specifics
@@ -208,7 +208,7 @@ func (g generator) Sim2(bodyCount int, collisionBehavior globals.CollisionBehavi
 //
 // args:
 //   simArgs CSV in the form: radius of clump, mass of bodies in clump, body count to inject. E.g.:,
-//           "70F,90E25F,500" (these are the defaults if no arg provided)
+//           "70,90E25,500" (these are the defaults if no arg provided)
 //
 // returns: a list of bodies, and a worker function to insert additional bodies
 //
@@ -357,10 +357,10 @@ func (g generator) Sim5(bodyCount int, collisionBehavior globals.CollisionBehavi
 		globals.Yellow, fragFactor, fragStep, false, "", "", false)
 	bodies = append(bodies, &im)
 
-	simWorker := func(bc body.SimBodyCollection) {
+	simWorker := func(sbc body.SimBodyCollection) {
 		for {
-			if bc.Count() > 6 {
-				theSun.SetCollisionBehavior(globals.Subsume)
+			if sbc.Count() > 6 {
+				theSun.SetCollisionBehavior(globals.Subsume) // TODO THIS NEEDS TO BE  ENQUEUED AS AN EVENT ALSO IS SUBSUME WORKING?
 				return
 			}
 			time.Sleep(time.Millisecond * 1000)
