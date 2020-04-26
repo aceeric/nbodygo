@@ -10,7 +10,8 @@ type IterationConsumer func (SimBody)
 //
 type SimBodyCollection interface {
 
-	// todo replaces above?
+	// allows other goroutines to add bodies to the queue and modify bodies in the queue without
+	// synchronization on the bodies themselves
 	Enqueue(Event)
 
 	// Makes one traversal through the body array and invokes the passed consumer for each body
@@ -23,8 +24,14 @@ type SimBodyCollection interface {
 	ProcessMods()
 
 	// Handles adds and deletes, preparing the array for the next iteration
-	Cycle()
+	Cycle(float64)
 
 	// Gets count of bodies
 	Count() int
+
+	// provides a copy of a body to the caller in a thread-safe manner
+	GetBody(id int, name string) func() SimBody
+
+	// TODO do I want this?
+	HandleGetBody()
 }

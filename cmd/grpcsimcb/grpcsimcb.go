@@ -1,7 +1,6 @@
 package grpcsimcb
 
 import (
-	"nbodygo/cmd/body"
 	"nbodygo/cmd/globals"
 )
 
@@ -16,6 +15,30 @@ const (
 func (mbr ModBodyResult) String() string {
 	return [...]string{"No matching bodies", "All matching bodies were modified",
 		"Some matching bodies were modified", "No matching bodies were modified"}[mbr]
+}
+
+//
+// Defines a struct how the gRPC service wants it. Simplifies type translation
+//
+type BodyRaw struct {
+	Id                int64
+	X                 float32
+	Y                 float32
+	Z                 float32
+	Vx                float32
+	Vy                float32
+	Vz                float32
+	Mass              float32
+	Radius            float32
+	IsSun             bool
+	CollisionBehavior globals.CollisionBehavior
+	BodyColor         globals.BodyColor
+	FragFactor        float32
+	FragStep          float32
+	WithTelemetry     bool
+	Name              string
+	Class             string
+	Pinned            bool
 }
 
 //
@@ -36,5 +59,5 @@ type GrpcSimCallbacks struct {
 	AddBody func(float64, float64, float64, float64, float64, float64, float64, float64,
 		bool, globals.CollisionBehavior,globals.BodyColor, float64, float64, bool, string, string, bool) int
 	ModBody func() ModBodyResult
-	GetBody func(int, string) body.SimBody
+	GetBody func(int, string) BodyRaw
 }

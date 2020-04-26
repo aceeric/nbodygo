@@ -376,21 +376,21 @@ func (g generator) Sim5(bodyCount int, collisionBehavior globals.CollisionBehavi
 //
 func (g generator) SimTest(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
 	simArgs string) ([]body.SimBody, SimWorker) {
-	bodies := createSunAndAddToList([]body.SimBody{}, body.NextId(), 100000, 100000, 200, 1, 500, 4E5)
+	bodies := createSunAndAddToList([]body.SimBody{}, body.NextId(), 20000, 20000, 20000, 1, 500, 10000)
 
 	// 0,0,0 stationary
-	m1 := body.NewBody(body.NextId(), 0, 0, 0, 0, 0, 0, 9E10, 60, collisionBehavior,
+	m1 := body.NewBody(body.NextId(), 0, 0, 0, 0, 0, 0, 9E29, 60, collisionBehavior,
 		globals.Red, 0, 0, false, "", "", false)
 	bodies = append(bodies, &m1)
 
 	// left heading down right
-	m2 := body.NewBody(body.NextId(), -350, 350, 0, 530000000, -500000000, 0, 9E10, 60,
+	m2 := body.NewBody(body.NextId(), -350, 350, 0, 530000000, -500000000, 0, 9E29, 60,
 		collisionBehavior, globals.Green, 0, 0, false, "", "",
 		false)
 	bodies = append(bodies, &m2)
 
 	// right heading down left
-	m3 := body.NewBody(body.NextId(), 350, 350, 0, -530000000, -500000000, 0, 9E10, 60,
+	m3 := body.NewBody(body.NextId(), 350, 350, 0, -530000000, -500000000, 0, 9E29, 60,
 		collisionBehavior, globals.Yellow, 0, 0, false, "", "",
 		false)
 	bodies = append(bodies, &m3)
@@ -415,7 +415,7 @@ func (g generator) SimTest(bodyCount int, collisionBehavior globals.CollisionBeh
 //
 func createSunAndAddToList(bodies []body.SimBody, id int, x, y, z, mass, radius float64, intensity float64) []body.SimBody {
 	b := body.NewBody(id, x, y, z, -3, -3, -5, mass, radius, globals.Subsume,
-		globals.White, 0, 0, false, "the-sun", "", false)
+		globals.White, 0, 0, false, "the-sun", "", true)
 	b.SetSun(intensity)
 	return append(bodies, &b)
 }

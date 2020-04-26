@@ -18,6 +18,7 @@ TODO
 
 - https://developers.google.com/protocol-buffers/docs/reference/go-generated
 - gRPC server/client
+-- get rid of SimBody and export all fields from Body
 - subsume does not appear to be working
 - consider removing interfaces: SimBody, Renderable, SimBodyCollection?
 - g3n directory structure (pkg?)

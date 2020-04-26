@@ -12,12 +12,11 @@ const (
 	G                float64 = 6.673e-11         // gravitational constant
 	fourThirdsPi     float64 = math.Pi * (4 / 3) // used in volume/radius calcs
 	fourPi           float64 = math.Pi * 4       // "
-	R                float64 = 1                 // coefficient of  restitution
+	//R                float64 = 1                 // coefficient of  restitution
 	maxFragsPerCycle int     = 100
 	maxFrags         float64 = 2000
 )
 
-var resCo = R
 //
 // Maintains fragmentation state as a body is fragmenting potentially across compute cycles
 //
@@ -39,7 +38,7 @@ type Body struct {
 	fragFactor, fragmentationStep float64
 	collisionBehavior             globals.CollisionBehavior
 	bodyColor                     globals.BodyColor
-//	R                             float64 // TODO R should be "class" scope
+	R                             float64
 	isSun                         bool
 	intensity                     float64
 	exists                        bool
@@ -50,12 +49,57 @@ type Body struct {
 	collided                      bool
 }
 
-func SetRestitutionCoefficient(r float64) {
-	resCo = r
+type RawBody struct {
+	Id                                int
+	Name                              string
+	Class                             string
+	Fragmenting                       bool
+	X, Y, Z, Vx, Vy, Vz, Radius, Mass float64
+	FragFactor, FragmentationStep float64
+	CollisionBehavior             globals.CollisionBehavior
+	BodyColor                     globals.BodyColor
+	R                             float64
+	IsSun                         bool
+	Intensity                     float64
+	Exists                        bool
+	WithTelemetry                 bool
+	Pinned                        bool
+	FragInfo                      fragInfo
+	Fx, Fy, Fz                    float64
+	Collided                      bool
 }
 
-func RestitutionCoefficient() float64 {
-	return resCo
+// SO BAD !!!!! TODO DELETEME FAST!
+func (b *Body) RawBodyFromSimBody() RawBody {
+	return RawBody{
+		Id:                b.id,
+		Name:              b.name,
+		Class:             b.class,
+		Fragmenting:       b.fragmenting,
+		X:                 b.x,
+		Y:                 b.y,
+		Z:                 b.z,
+		Vx:                b.vx,
+		Vy:                b.vy,
+		Vz:                b.vz,
+		Radius:            b.radius,
+		Mass:              b.mass,
+		FragFactor:        b.fragFactor,
+		FragmentationStep: b.fragmentationStep,
+		CollisionBehavior: b.collisionBehavior,
+		BodyColor:         b.bodyColor,
+		R:                 b.R,
+		IsSun:             b.isSun,
+		Intensity:         b.intensity,
+		Exists:            b.exists,
+		WithTelemetry:     b.withTelemetry,
+		Pinned:            b.pinned,
+		FragInfo:          b.fragInfo,
+		Fx:                b.fx,
+		Fy:                b.fy,
+		Fz:                b.fz,
+		Collided:          b.collided,
+	}
 }
 
 //
@@ -86,6 +130,7 @@ func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float64, collisionBehavio
 		fragmentationStep: fragmentationStep,
 		collisionBehavior: collisionBehavior,
 		bodyColor:         bodyColor,
+		R:                 1,
 		isSun:             false,
 		intensity:         0,
 		exists:            true,
@@ -105,6 +150,7 @@ func (b *Body) mod() bool {
 // begin SimBody and Renderable interface implementation(s)
 
 func (b *Body) Id() int                      { return b.id }
+func (b *Body) Name() string                 { return b.name }
 func (b *Body) Exists() bool                 { return b.exists }
 func (b *Body) X() float32                   { return float32(b.x) }
 func (b *Body) Y() float32                   { return float32(b.y) }
@@ -113,12 +159,18 @@ func (b *Body) Radius() float64              { return b.radius }
 func (b *Body) IsSun() bool                  { return b.isSun }
 func (b *Body) Intensity() float32           { return float32(b.intensity) }
 func (b *Body) SetSun(intensity float64)     { b.isSun = true; b.intensity = intensity }
+func (b *Body) SetR(R float64)               { b.R = R }
+func (b *Body) IsPinned() bool               { return b.pinned }
 func (b *Body) BodyColor() globals.BodyColor { return b.bodyColor }
 func (b *Body) SetCollisionBehavior(behavior globals.CollisionBehavior) {
 	b.collisionBehavior = behavior
 }
+func (b *Body) SetNotExists() {
+	b.mass = 0
+	b.exists = false
+}
 
-func (b *Body) Update(timeScaling float64) renderable.Renderable {
+func (b *Body) Update(timeScaling, R float64) renderable.Renderable {
 	if !b.exists {
 		return renderable.NewFromRenderable(b)
 	}
@@ -132,6 +184,7 @@ func (b *Body) Update(timeScaling float64) renderable.Renderable {
 	b.z += timeScaling * b.vz
 	// clear collided flag for next cycle
 	b.collided = false
+	b.R = R
 	if b.withTelemetry {
 		// TODO print b to console
 	}
@@ -210,7 +263,7 @@ func (b *Body) ResolveSubsume(otherBody SimBody) {
 		b.radius = newRadius;
 	*/
 	b.mass = thisMass + otherMass
-	ob.setNotExists()
+	ob.SetNotExists()
 	// TODO LOGGER
 }
 
@@ -234,12 +287,12 @@ func (b *Body) ResolveCollision(otherBody SimBody) {
 }
 
 func (b *Body) doElastic(otherBody *Body, r collisionCalcResult) {
-	b.vx = (r.vx1-r.vx_cm)*R + r.vx_cm
-	b.vy = (r.vy1-r.vy_cm)*R + r.vy_cm
-	b.vz = (r.vz1-r.vz_cm)*R + r.vz_cm
-	otherBody.vx = (r.vx2-r.vx_cm)*R + r.vx_cm
-	otherBody.vy = (r.vy2-r.vy_cm)*R + r.vy_cm
-	otherBody.vz = (r.vz2-r.vz_cm)*R + r.vz_cm
+	b.vx = (r.vx1 - r.vx_cm) * b.R + r.vx_cm
+	b.vy = (r.vy1 - r.vy_cm) * b.R + r.vy_cm
+	b.vz = (r.vz1 - r.vz_cm) * b.R + r.vz_cm
+	otherBody.vx = (r.vx2 - r.vx_cm) * b.R + r.vx_cm
+	otherBody.vy = (r.vy2 - r.vy_cm) * b.R + r.vy_cm
+	otherBody.vz = (r.vz2 - r.vz_cm) * b.R + r.vz_cm
 	b.collided = true
 	otherBody.collided = true
 }
@@ -404,9 +457,4 @@ func NextId() (id int) {
 	idGenerator.id++
 	idGenerator.lock.Unlock()
 	return
-}
-
-func (b *Body) setNotExists() {
-	b.mass = 0
-	b.exists = false
 }

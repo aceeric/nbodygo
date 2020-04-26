@@ -8,8 +8,8 @@ import (
 
 type fragmentationCalcResult struct { // todo consider multi-return value rather than struct - same for fragcalc
 	shouldFragment bool
-	thisFactor float64
-	otherFactor float64
+	thisFactor     float64
+	otherFactor    float64
 }
 
 func noFragmentation() fragmentationCalcResult {
@@ -31,16 +31,16 @@ func (b *Body) shouldFragment(otherBody *Body, r collisionCalcResult) fragmentat
 	}
 	vThis := b.vx + b.vy + b.vz
 	dvThis :=
-		math.Abs(b.vx-((r.vx1-r.vx_cm)*R+r.vx_cm)) +
-			math.Abs(b.vy-((r.vy1-r.vy_cm)*R+r.vy_cm)) +
-			math.Abs(b.vz-((r.vz1-r.vz_cm)*R+r.vz_cm))
+		math.Abs(b.vx-((r.vx1-r.vx_cm)*b.R+r.vx_cm)) +
+			math.Abs(b.vy-((r.vy1-r.vy_cm)*b.R+r.vy_cm)) +
+			math.Abs(b.vz-((r.vz1-r.vz_cm)*b.R+r.vz_cm))
 
 	vThisFactor := dvThis / math.Abs(vThis)
 	vOther := otherBody.vx + otherBody.vy + otherBody.vz
 	dvOther :=
-		math.Abs(otherBody.vx-((r.vx2-r.vx_cm)*R+r.vx_cm)) +
-			math.Abs(otherBody.vy-((r.vy2-r.vy_cm)*R+r.vy_cm)) +
-			math.Abs(otherBody.vz-((r.vz2-r.vz_cm)*R+r.vz_cm))
+		math.Abs(otherBody.vx-((r.vx2-r.vx_cm)*b.R+r.vx_cm)) +
+			math.Abs(otherBody.vy-((r.vy2-r.vy_cm)*b.R+r.vy_cm)) +
+			math.Abs(otherBody.vz-((r.vz2-r.vz_cm)*b.R+r.vz_cm))
 
 	vOtherFactor := dvOther / math.Abs(vOther)
 
@@ -113,4 +113,3 @@ func (b *Body) fragment(sbc SimBodyCollection) {
 		b.radius = b.radius * .9
 	}
 }
-

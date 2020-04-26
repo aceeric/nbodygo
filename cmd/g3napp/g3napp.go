@@ -99,7 +99,7 @@ func renderLoop(renderer *renderer.Renderer, _ time.Duration) {
 // G3N scene graph
 //
 func updateSim() {
-	rq, ok := g3nApp.holder.NextComputedQueue()
+	rq, ok := g3nApp.holder.Next()
 	if !ok {
 		return
 	}
@@ -113,6 +113,7 @@ func updateSim() {
 				delete(g3nApp.meshes, bri.Id())
 				if l, ok := g3nApp.lightSources[bri.Id()]; ok {
 					g3nApp.scene.Remove(l)
+					delete(g3nApp.lightSources, bri.Id())
 				}
 			}
 		} else {

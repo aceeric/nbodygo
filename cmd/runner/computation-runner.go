@@ -30,9 +30,15 @@ type ComputationRunner struct {
 	// true if running
 	running bool
 	// applied to the force and velocity by the body force computer as a smoothing factor
-	timeScaling float64
+	timeScaling   float64
+	timeScaleChan chan float64
 	// holds computed results for the render engine
 	resultQueueHolder ResultQueueHolder
+	// coefficient of restitution for elastic collision
+	R float64
+	RChan chan float64
+	deletes int
+	delChan chan int
 }
 
 //
@@ -66,7 +72,11 @@ func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder 
 		wp:                NewWorkPool(workerCnt, cc),
 		sbc:               cc,
 		timeScaling:       timeScaling,
+		timeScaleChan:     make(chan float64, 1),
 		resultQueueHolder: resultQueueHolder,
+		R:                 1,
+		RChan:             make(chan float64, 1),
+		delChan:           make(chan int, 1),
 	}
 	return &r
 }
@@ -109,6 +119,99 @@ func (r *ComputationRunner) SetWorkers(workerCnt int) {
 //
 func (r *ComputationRunner) TimeScaling() float64 {
 	return r.timeScaling
+}
+
+//
+// sets the time scaling factor in the runner to the passed value
+//
+func (r *ComputationRunner) SetTimeScaling(timeScaling float64) {
+	r.timeScaleChan <- timeScaling
+}
+
+//
+// if a change the the time scale has been enqueued in the channel, use
+// it to update the time scale
+//
+func (r *ComputationRunner) updateTimeScaling() {
+	select {
+	case r.timeScaling = <-r.timeScaleChan:
+		return
+	default:
+	}
+}
+
+//
+// returns the coefficient of restitution
+//
+func (r *ComputationRunner) CoefficientOfRestitution() float64 {
+	return r.R
+}
+
+//
+// sets the coefficient of restitution in the runner to the passed value
+//
+func (r *ComputationRunner) SetCoefficientOfRestitution(R float64) {
+	r.RChan <- R
+}
+
+//
+// if a change the the time scale has been enqueued in the channel, use
+// it to update the time scale
+//
+func (r *ComputationRunner) updateCoefficientOfRestitution() {
+	select {
+	case r.R = <-r.RChan:
+		return
+	default:
+	}
+}
+
+//
+// sets the coefficient of restitution in the runner to the passed value
+//
+func (r *ComputationRunner) RemoveBodies(deletes int) {
+	r.delChan <- deletes
+}
+
+//
+// if a change the the time scale has been enqueued in the channel, use
+// it to update the time scale
+//
+func (r *ComputationRunner) processDeletes() {
+	select {
+	case r.deletes = <-r.delChan:
+		delCnt := r.deletes
+		r.deletes = 0
+		if delCnt == -1 {
+			r.sbc.IterateOnce(func(b body.SimBody) {
+				b.SetNotExists()
+			})
+		} else {
+			removedCnt, step, iter := 0, 0, 0
+			if delCnt > r.sbc.Count() {
+				step = 1
+			} else {
+				step = r.sbc.Count() / delCnt
+			}
+			shouldRemove := false
+			r.sbc.IterateOnce(func(b body.SimBody) {
+				if iter % step == 0 {
+					shouldRemove = true
+				}
+				iter++
+				if shouldRemove && !b.IsPinned() && b.Exists() {
+					b.SetNotExists()
+					shouldRemove = false
+					removedCnt++
+					if removedCnt >= delCnt {
+						return
+					}
+				}
+			})
+		}
+		return
+	default:
+	}
 }
 
 //
@@ -160,34 +263,42 @@ func (r *ComputationRunner) run() {
 // body values (and only what it needs to render the visuals) so there is never thread contention
 // between the graphics engine and the body position computation
 //
+// In order to synchronize access to the body collection this function also kind of serves as the traffic
+// cop for adds/deletes/mods while the sim is running
+//
 func (r *ComputationRunner) runOneComputation() {
 	r.iterations++
+	r.updateTimeScaling()
+	r.updateCoefficientOfRestitution()
+	r.processDeletes()
+	r.sbc.HandleGetBody()
 	rq, ok := r.resultQueueHolder.NewResultQueue()
 	if !ok {
 		return
 	}
 	start := time.Now()
 	bodies := 0
-	r.sbc.IterateOnce(func(c body.SimBody) {
-		r.wp.submit(c)
-		r.submits++
-		bodies++
+	r.sbc.IterateOnce(func(b body.SimBody) {
+		if b.Exists() {
+			r.wp.submit(b)
+			r.submits++
+			bodies++
+		}
 	})
-	if bodies == 0 {
-		return
+	if bodies != 0 {
+		r.submitMillis += time.Now().Sub(start).Milliseconds()
+		start = time.Now()
+		r.wp.wait()
+		r.waits++
+		r.waitMillis += time.Now().Sub(start).Milliseconds()
 	}
-	r.submitMillis += time.Now().Sub(start).Milliseconds()
-	start = time.Now()
-	r.wp.wait()
-	r.waits++
-	r.waitMillis += time.Now().Sub(start).Milliseconds()
 	r.sbc.ProcessMods()
-	r.sbc.IterateOnce(func(c body.SimBody) {
-		ri := c.Update(r.timeScaling)
-		rq.AddRenderable(ri)
+	r.sbc.IterateOnce(func(b body.SimBody) {
+		ri := b.Update(r.timeScaling, r.R)
+		rq.Add(ri)
 	})
-	r.resultQueueHolder.SetComputed(rq)
-	r.sbc.Cycle()
+	r.resultQueueHolder.Add(rq)
+	r.sbc.Cycle(r.R)
 	r.computations++
 	r.goroutines += runtime.NumGoroutine()
 }

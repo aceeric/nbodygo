@@ -11,15 +11,21 @@ import (
 //
 type simBodyCollection struct {
 	// this is the body array that all goroutines will iterate
-	arr    []SimBody
+	arr []SimBody
 	// a list of concurrent adds, as well as collisions accumulated during each compute cycle
 	events *list.List
 	// concurrency
-	lock   sync.Mutex
+	lock sync.Mutex
 	// handle add/modify body events
-	evCh  chan Event
+	evCh chan Event
+	// allows the gRPC server to get a body synchronized
+	getBodyCh chan struct {
+		id   int
+		name string
+	}
+	sendBodyCh chan SimBody
 	// diagnostic/debugging aid
-	cycle  int
+	cycle int
 }
 
 //
@@ -34,6 +40,12 @@ func NewSimBodyCollection(bodies []SimBody) SimBodyCollection {
 		events: list.New(),
 		lock:   sync.Mutex{},
 		evCh:   make(chan Event, 5000), // todo factor of body count
+		getBodyCh: make(chan
+		struct {
+			id   int
+			name string
+		}, 10),
+		sendBodyCh: make(chan SimBody, 1),
 	}
 	for i, size := 0, len(bodies); i < size; i++ {
 		c.arr[i] = bodies[i]
@@ -48,7 +60,7 @@ func NewSimBodyCollection(bodies []SimBody) SimBodyCollection {
 // on performance
 //
 func (sbc *simBodyCollection) Enqueue(ev Event) {
-	sbc.evCh<- ev
+	sbc.evCh <- ev
 }
 
 //
@@ -61,10 +73,63 @@ func (sbc *simBodyCollection) handleEvents() {
 		select {
 		default:
 			runtime.Gosched()
-		case ev:= <-sbc.evCh:
+		case ev := <-sbc.evCh:
 			sbc.lock.Lock()
 			sbc.events.PushFront(ev)
 			sbc.lock.Unlock()
+		}
+	}
+}
+
+//
+// because the computation cycle is always running, this function provides a way for callers
+// to register a request to get a body. The function writes to a channel which is checked by the
+// 'HandleGetBody' function which is called by the collection's 'Cycle' method. That method finds
+// the body, clones it, and writes it to the channel that is checked by the function returned by
+// this function. This gives the caller a copy of the body created in a thread-safe way. E.g.:
+//
+// Assume 'sbc' is pointer to the collection:
+//
+// var b SimBody = sbc.GetBody()()
+//
+// The second parens invoke the return function, and doesn't require exposing the channel to the
+// caller
+//
+func (sbc *simBodyCollection) GetBody(id int, name string) func() SimBody {
+	sbc.getBodyCh <- struct {
+		id   int
+		name string
+	}{id: id, name: name}
+	return func() SimBody {
+		return <-sbc.sendBodyCh
+	}
+}
+
+func (sbc *simBodyCollection) HandleGetBody() {
+	select {
+	default:
+	case ev := <-sbc.getBodyCh:
+		id := ev.id
+		name := ev.name
+		for i, size := 0, len(sbc.arr); i < size; i++ {
+			if (name != "" && name == sbc.arr[i].Name()) || (id == sbc.arr[i].Id()) {
+				sbc.doSendBody(sbc.arr[i])
+				return
+			}
+		}
+		sbc.doSendBody(nil)
+	}
+}
+
+func (sbc *simBodyCollection) doSendBody(b SimBody) {
+	if len(sbc.sendBodyCh) < cap(sbc.sendBodyCh) { // if too many requests just discard them
+		if b != nil {
+			bb := b.(*Body)
+			clone := NewBody(bb.id, bb.x, bb.y, bb.z, bb.vx, bb.vy, bb.vz, bb.mass, bb.radius, bb.collisionBehavior, bb.bodyColor,
+				bb.fragFactor, bb.fragmentationStep, bb.withTelemetry, bb.name, bb.class, bb.pinned)
+			sbc.sendBodyCh <- &clone
+		} else {
+			sbc.sendBodyCh <- nil
 		}
 	}
 }
@@ -110,7 +175,8 @@ func (sbc *simBodyCollection) GetArrayCopy() *[]SimBody {
 
 //
 // Walks the internal 'events' list and processes all enqueued events. These are events that require
-// changing body state in such a way that would require synchronization to avoid race conditions.
+// changing body state in such a way that would require synchronization to avoid race conditions. Adds
+// are excluded from this processing. (Handled in the 'Cycle' function.)
 //
 func (sbc *simBodyCollection) ProcessMods() {
 	sbc.lock.Lock()
@@ -151,16 +217,19 @@ func (sbc *simBodyCollection) countAdds() int {
 //
 // Called by computation runner to prepare the body collection for another compute cycle. Removes refs
 // to bodies that have been set not to exist, and resolves collisions and fragmentations which have to be
-// done in a single thread to avoid race conditions
+// done in a single thread to avoid race conditions.
 //
-func (sbc *simBodyCollection) Cycle() {
+// args:
+//   R  coefficient of restitution for elastic collision gets plugged into each added body
+//
+func (sbc *simBodyCollection) Cycle(R float64) {
 	cnt := 0
 	for i, size := 0, len(sbc.arr); i < size; i++ {
 		if sbc.arr[i].Exists() {
 			cnt++
 		}
 	}
-	sbc.lock.Lock() // prevents adds
+	sbc.lock.Lock() // prevents new events
 	defer sbc.lock.Unlock()
 	if cnt < len(sbc.arr) {
 		cnt += sbc.countAdds()
@@ -176,6 +245,7 @@ func (sbc *simBodyCollection) Cycle() {
 		for e := sbc.events.Front(); e != nil; e = e.Next() {
 			if e.Value.(Event).evType == AddEvent {
 				arr[j] = e.Value.(Event).GetAdd()
+				arr[j].SetR(R)
 				j++
 			}
 		}
@@ -186,7 +256,9 @@ func (sbc *simBodyCollection) Cycle() {
 		if cnt > 0 {
 			for e := sbc.events.Front(); e != nil; e = e.Next() {
 				if e.Value.(Event).evType == AddEvent {
-					sbc.arr = append(sbc.arr, e.Value.(Event).GetAdd())
+					b := e.Value.(Event).GetAdd()
+					b.SetR(R)
+					sbc.arr = append(sbc.arr, b)
 				}
 			}
 		}
@@ -194,5 +266,3 @@ func (sbc *simBodyCollection) Cycle() {
 	}
 	sbc.cycle++
 }
-
-
