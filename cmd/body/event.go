@@ -4,7 +4,12 @@ package body
 // Events are enqueued in the body collection as they occur during each compute cycle. This allows bodies
 // to modify each other (e.g. collide and exchange velocity) in a thread safe way. The enqueued events are
 // processed by the computation once each cycle. This avoids synchronization between bodies which would not
-// be feasible given the number of concurrent reads.
+// be feasible given the number of concurrent reads. In the Java version, the threads could  modify each
+// other's body objects because the JVM guaranteed atomic reads/writes. Granted this resulted in a "dirty
+// read" for the Java app but the individual values were immune from race conditions and so - in the
+// interests of concurrency it was an acceptable compromise. In Go, however, any concurrent access is a
+// race condition. But the high concurrency (2K bodies reading 2K bodies) makes synchronization using
+// a mutex infeasible from a performance perspective.
 //
 
 //

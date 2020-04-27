@@ -4,7 +4,7 @@ option go_package = ".;nbodygrpc";
 
 import "google/protobuf/empty.proto";
 
-// Defines a gRPC Service that enables entities external to the running JVM to view / modify
+// Defines a gRPC Service that enables entities external to the running sim to view / modify
 // simulation configurables, thus changing the behavior of the simulation on the fly
 service NBodyService {
 
@@ -41,7 +41,7 @@ service NBodyService {
   rpc GetCurrentConfig(google.protobuf.Empty) returns (CurrentConfig) {}
 }
 
-// Holds the values of configurables
+// Holds the values of configurable settings
 message CurrentConfig {
   int64  bodies = 1;
   int64  result_queue_size = 2;
@@ -129,7 +129,7 @@ enum CollisionBehaviorEnum {
   FRAGMENT = 4;
 }
 
-// Defines the supported body colors. Presently, these align with the JMonkeyEngine
+// Defines the supported body colors
 
 enum BodyColorEnum {
   NOCOLOR = 0;

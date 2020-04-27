@@ -8,6 +8,11 @@ import (
 )
 
 //
+// The computation runner runs the n-body computation perpetually in a loop until signaled to stop. The
+// runner contains a worker pool and a reference to the sim body collection.
+//
+
+//
 // Computation runner state
 //
 type ComputationRunner struct {
@@ -35,8 +40,8 @@ type ComputationRunner struct {
 	// holds computed results for the render engine
 	resultQueueHolder *ResultQueueHolder
 	// coefficient of restitution for elastic collision
-	R float64
-	RChan chan float64
+	R       float64
+	RChan   chan float64
 	deletes int
 	delChan chan int
 }
@@ -111,7 +116,7 @@ func (r *ComputationRunner) Stop() {
 }
 
 //
-// calls into the work pool contained in the struct to change the pool size. This is enqueued
+// Calls into the work pool contained in the struct to change the pool size. This is enqueued
 // and handled by the pool the next time work is submitted to the pool
 //
 func (r *ComputationRunner) SetWorkers(workerCnt int) {
@@ -120,21 +125,21 @@ func (r *ComputationRunner) SetWorkers(workerCnt int) {
 }
 
 //
-// returns the time scaling factor in the runner
+// Returns the time scaling factor in the runner
 //
 func (r *ComputationRunner) TimeScaling() float64 {
 	return r.timeScaling
 }
 
 //
-// sets the time scaling factor in the runner to the passed value
+// Sets the time scaling factor in the runner to the passed value
 //
 func (r *ComputationRunner) SetTimeScaling(timeScaling float64) {
 	r.timeScaleChan <- timeScaling
 }
 
 //
-// if a change the the time scale has been enqueued in the channel, use
+// If a change the the time scale has been enqueued in the channel, use
 // it to update the time scale
 //
 func (r *ComputationRunner) updateTimeScaling() {
@@ -146,21 +151,21 @@ func (r *ComputationRunner) updateTimeScaling() {
 }
 
 //
-// returns the coefficient of restitution
+// Returns the coefficient of restitution
 //
 func (r *ComputationRunner) CoefficientOfRestitution() float64 {
 	return r.R
 }
 
 //
-// sets the coefficient of restitution in the runner to the passed value
+// Sets the coefficient of restitution in the runner to the passed value
 //
 func (r *ComputationRunner) SetCoefficientOfRestitution(R float64) {
 	r.RChan <- R
 }
 
 //
-// if a change the the coefficient of restitution has been enqueued in the channel, use
+// If a change the the coefficient of restitution has been enqueued in the channel, use
 // it to update the coefficient of restitution
 //
 func (r *ComputationRunner) updateCoefficientOfRestitution() {
@@ -172,14 +177,14 @@ func (r *ComputationRunner) updateCoefficientOfRestitution() {
 }
 
 //
-// sends a message to delete the passed number of bodies from the sim
+// Sends a message to delete the passed number of bodies from the sim
 //
 func (r *ComputationRunner) RemoveBodies(deletes int) {
 	r.delChan <- deletes
 }
 
 //
-// handles a request to remove bodies from the sim
+// Handles a request to remove bodies from the sim
 //
 func (r *ComputationRunner) processDeletes() {
 	select {
@@ -199,7 +204,7 @@ func (r *ComputationRunner) processDeletes() {
 			}
 			shouldRemove := false
 			r.bc.IterateOnce(func(b *body.Body) {
-				if iter % step == 0 {
+				if iter%step == 0 {
 					shouldRemove = true
 				}
 				iter++
@@ -219,15 +224,15 @@ func (r *ComputationRunner) processDeletes() {
 }
 
 //
-// returns the count of workers in the worker pool
+// Returns the count of workers in the worker pool
 //
 func (r *ComputationRunner) WorkerCount() int {
 	return r.workerCnt
 }
 
 //
-// Main runner. A go routine that runs until stopped. Runs one computation, and monitors
-// the stop channel in a loop
+// Main runner. A go routine that runs until stopped. In a loop: runs one computation, and monitors
+// the stop channel
 //
 func (r *ComputationRunner) run() {
 	r.startTime = time.Now()
@@ -285,33 +290,32 @@ func (r *ComputationRunner) runOneComputation() {
 	submits := 0
 
 	// slightly better performance this way - give each worker a slice to work on
-	if true {
-		workers := len(r.wp.workers)
-		arr := r.bc.GetArray()
-		max := len(arr)
-		size := max / workers
-		if max < 100 {
-			// for small simulations just use one worker
-			size = len(arr)
+	workers := len(r.wp.workers)
+	arr := r.bc.GetArray()
+	max := len(arr)
+	size := max / workers
+	if max < 100 {
+		// for small simulations just use one worker
+		size = len(arr)
+	}
+	for offset := 0; offset < max; offset += size {
+		end := offset + size
+		if offset+size > max {
+			end = max
 		}
-		for offset := 0; offset < max; offset += size {
-			end := offset + size
-			if offset+size > max {
-				end = max
-			}
-			r.wp.submitSlice(arr[offset:end])
-			r.submits++
-			submits++
-		}
-		if submits != 0 {
-			r.submitMillis += time.Now().Sub(start).Milliseconds()
-			start = time.Now()
-			r.wp.wait()
-			r.waits++
-			r.waitMillis += time.Now().Sub(start).Milliseconds()
-		}
-	} else {
-		// this approach submits to the work pool one body at a time, which
+		r.wp.submitSlice(arr[offset:end])
+		r.submits++
+		submits++
+	}
+	if submits != 0 {
+		r.submitMillis += time.Now().Sub(start).Milliseconds()
+		start = time.Now()
+		r.wp.wait()
+		r.waits++
+		r.waitMillis += time.Now().Sub(start).Milliseconds()
+	}
+	/*
+		// this initial approach submits to the work pool one body at a time, which
 		// is how the Java app does it
 		r.bc.IterateOnce(func(b *body.Body) {
 			if b.Exists {
@@ -327,7 +331,7 @@ func (r *ComputationRunner) runOneComputation() {
 			r.waits++
 			r.waitMillis += time.Now().Sub(start).Milliseconds()
 		}
-	}
+	*/
 	r.bc.ProcessMods()
 	r.bc.IterateOnce(func(b *body.Body) {
 		ri := b.Update(r.timeScaling, r.R)

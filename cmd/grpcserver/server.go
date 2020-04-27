@@ -39,4 +39,3 @@ func Start(callbacks grpcsimcb.GrpcSimCallbacks) {
 func Stop() {
 	grpcServer.Stop()
 }
-

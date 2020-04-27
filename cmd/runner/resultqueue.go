@@ -21,9 +21,8 @@ import (
 // engine
 //
 type ResultQueue struct {
-	computed bool
-	queNum uint
-	queue []*body.Renderable
+	queueNum uint
+	queue    []*body.Renderable
 }
 
 //
@@ -41,24 +40,13 @@ func (rq *ResultQueue) Add(info *body.Renderable) {
 }
 
 //
-// Creates and returns a new result queue - but does not add the queue to the holder
-//
-func newResultQueue(queNum uint) *ResultQueue  {
-	return &ResultQueue{
-		computed: false,
-		queNum:   queNum,
-		queue:    make([]*body.Renderable, 0),
-	}
-}
-
-//
 // A result queue holder holds a fixed size queue of result queues allowing the computation
 // runner to slightly outrun the render engine
 //
 type ResultQueueHolder struct {
 	selector chan int
-	queues [2]struct {
-		ch chan *ResultQueue
+	queues   [2]struct {
+		ch        chan *ResultQueue
 		maxQueues int
 	}
 	queueNum  uint
@@ -77,31 +65,31 @@ func (rqh *ResultQueueHolder) Add(queue *ResultQueue) {
 	if len(rqh.queues[q].ch) >= rqh.queues[q].maxQueues {
 		panic("No queue capacity")
 	}
-	rqh.queues[q].ch<- queue
-	rqh.selector<- q
+	rqh.queues[q].ch <- queue
+	rqh.selector <- q
 }
 
 //
 // Initializes a new result queue holder with capacity = 'maxQueues', and resizable based on the
 // resizable arg
 //
-func NewResultQueueHolder(maxQueues int, resizable bool) ResultQueueHolder {
+func NewResultQueueHolder(maxQueues int, resizable bool) *ResultQueueHolder {
 	rqh := ResultQueueHolder{
 		selector: make(chan int, 1),
 		queues: [2]struct {
-			ch chan *ResultQueue
+			ch        chan *ResultQueue
 			maxQueues int
 		}{
 			{
-				ch: make(chan *ResultQueue, maxQueues),
+				ch:        make(chan *ResultQueue, maxQueues),
 				maxQueues: maxQueues,
 			},
 		},
-		queueNum: 0,
+		queueNum:  0,
 		resizable: resizable,
 	}
-	rqh.selector<- 0
-	return rqh
+	rqh.selector <- 0
+	return &rqh
 }
 
 //
@@ -119,14 +107,18 @@ func (rqh *ResultQueueHolder) NewResultQueue() (*ResultQueue, bool) {
 		q := <-rqh.selector
 		l := len(rqh.queues[q].ch)
 		max := rqh.queues[q].maxQueues
-		rqh.selector<- q
+		rqh.selector <- q
 		if l >= max {
 			return nil, false
 		}
 	}
 	queueNum := rqh.queueNum
 	rqh.queueNum++
-	return newResultQueue(queueNum), true
+	return &ResultQueue{
+		queueNum: queueNum,
+		queue:    make([]*body.Renderable, 0),
+	}, true
+
 }
 
 //
@@ -145,10 +137,10 @@ func (rqh *ResultQueueHolder) Next() (*ResultQueue, bool) {
 	q := <-rqh.selector
 	select {
 	case queue := <-rqh.queues[q].ch:
-		rqh.selector<- q
+		rqh.selector <- q
 		return queue, true
 	default:
-		rqh.selector<- q
+		rqh.selector <- q
 		return nil, false
 	}
 }
@@ -164,7 +156,7 @@ func (rqh *ResultQueueHolder) MaxQueues() (int, int) {
 	q := <-rqh.selector
 	max := rqh.queues[q].maxQueues
 	ln := len(rqh.queues[q].ch)
-	rqh.selector<- q
+	rqh.selector <- q
 	return max, ln
 }
 
@@ -178,8 +170,8 @@ func (rqh *ResultQueueHolder) MaxQueues() (int, int) {
 // in the resized queue to accommodate this requirement. The use case is:
 //
 // computation runner asks for a new queue from the holder - and gets one - so there is capacity
-// resize event concurrently resizes the queue down leaving extra space
-// runner adds the queue to the holder - the add succeeds because of the extra space as described
+// resize event concurrently resizes the queue down, while leaving extra space as described
+// runner adds the queue to the holder - the add succeeds because of the extra space
 //
 // This only works because there is only one thread adding to the queue. It wouldn't work with more
 // than one thread adding. But the design of this holder is not intended to be general purpose - it is
@@ -192,7 +184,7 @@ func (rqh *ResultQueueHolder) Resize(maxQueues int) bool {
 	q := <-rqh.selector
 	if maxQueues == rqh.queues[q].maxQueues {
 		// don't resize to the same size
-		rqh.selector<- q
+		rqh.selector <- q
 		return false
 	}
 	sizeToUse := maxQueues
@@ -204,24 +196,24 @@ func (rqh *ResultQueueHolder) Resize(maxQueues int) bool {
 		// set logical queue size to match the caller's stipulation
 		sizeToUse = rqh.queues[q].maxQueues + 1
 	}
-	rqh.queues[q ^ 1] = struct {
-		ch chan *ResultQueue
+	rqh.queues[q^1] = struct {
+		ch        chan *ResultQueue
 		maxQueues int
 	}{
-		ch: make(chan *ResultQueue, sizeToUse), // could be bigger than maxQueues per above
+		ch:        make(chan *ResultQueue, sizeToUse), // could be bigger than maxQueues per above
 		maxQueues: maxQueues,
 	}
 	for ; len(rqh.queues[q].ch) != 0; {
 		// transfer queue contents
 		rq := <-rqh.queues[q].ch
-		rqh.queues[q ^ 1].ch<- rq
+		rqh.queues[q^1].ch <- rq
 	}
-	rqh.selector<- q ^ 1 // enable new queue
+	rqh.selector <- q ^ 1 // enable new queue
 	rqh.queues[q] = struct {
-		ch chan *ResultQueue
+		ch        chan *ResultQueue
 		maxQueues int
 	}{
-		ch: nil,
+		ch:        nil,
 		maxQueues: 0,
 	}
 	return true

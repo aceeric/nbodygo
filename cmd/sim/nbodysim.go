@@ -43,7 +43,7 @@ type NBodySim struct {
 
 	// If not nil, then the sim runner will call the function after the sim is started. The
 	// function can then modify the body queue while the sim is running and exit when it is done
-	simWorker SimWorker
+	simWorker Worker
 
 	// If false, then don't start the rendering engine. Useful for testing/debugging since the
 	// rendering engine and OpenGL can interfere with single-stepping in the IDE
@@ -60,36 +60,35 @@ type NBodySim struct {
 //
 // Simulation runner
 //
-// - Initializes instrumentation which - depending on TODO what is Go equivalent of JVM properties - could be
-//   NOP instrumentation, or Prometheus instrumentation
-// - Initializes a collection to hold all the bodies in the simulation
-// - Initializes a result queue holder to hold computed results
-// - Initializes a computation runner and starts it, which perpetually computes the sim in a thread,
+// * Initializes instrumentation which could be NOP instrumentation, or Prometheus instrumentation
+// * Initializes a collection to hold all the bodies in the simulation
+// * Initializes a result queue holder to hold computed results
+// * Initializes a computation runner and starts it, which perpetually computes the sim in a goroutine,
 //   placing the computed results into the result queue holder
-// - Initializes the G3N graphics engine and starts it - which renders the computed results from the result queue
-//   perpetually in a thread
-// - Starts a gRPC server to handle requests from external entities to modify various aspects of the simulation
+// * Initializes the G3N graphics engine and starts it - which renders the computed results from the result queue
+//   perpetually in a goroutine
+// * Starts a gRPC server to handle requests from external entities to modify various aspects of the simulation
 //   while it is running (e.g. to add bodies or change sim characteristics)
-// - Waits for the G3N goroutine to exit (when the user presses ESC)
-// - Cleans up
+// * Waits for the G3N goroutine to exit (when the user presses ESC)
+// * Cleans up
 //
 func (sim NBodySim) Run() {
-	// TODO start instrumentation
-	bc := body.NewSimBodyCollection(sim.bodies)                      // todo return interface vs return struct consistency
-	rqh := runner.NewResultQueueHolder(defaultMaxResultQueues, true) // todo all NEWs return pointers uniformly
-	simDone := make(chan bool)                                       // to shut down the G3N engine
+	// todo start instrumentation
+	bc := body.NewSimBodyCollection(sim.bodies)
+	rqh := runner.NewResultQueueHolder(defaultMaxResultQueues, true)
+	simDone := make(chan bool) // to shut down the G3N engine
 	if sim.render {
-		g3napp.StartG3nApp(&sim.initialCam, sim.resolution[0], sim.resolution[1], &rqh, simDone)
+		g3napp.StartG3nApp(&sim.initialCam, sim.resolution[0], sim.resolution[1], rqh, simDone)
 	}
-	crunner := runner.NewComputationRunner(sim.workers, sim.scaling, &rqh, bc).Start()
-	grpcserver.Start(newGrpcSimCb(bc, crunner, &rqh))
+	crunner := runner.NewComputationRunner(sim.workers, sim.scaling, rqh, bc).Start()
+	grpcserver.Start(newGrpcSimCb(bc, crunner, rqh))
 	if sim.simWorker != nil {
 		go sim.simWorker(bc)
 	}
-	waitForSimEnd(sim.render, &rqh, simDone, sim.runMillis)
+	waitForSimEnd(sim.render, rqh, simDone, sim.runMillis)
 	grpcserver.Stop()
 	crunner.Stop()
-	// TODO stop instrumentation
+	// todo stop instrumentation
 	crunner.PrintStats()
 }
 
@@ -129,5 +128,3 @@ func waitForSimEnd(render bool, rqh *runner.ResultQueueHolder, simDone chan bool
 		}
 	}
 }
-
-

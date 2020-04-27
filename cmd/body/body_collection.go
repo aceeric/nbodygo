@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-type IterationConsumer func (*Body)
+type IterationConsumer func(*Body)
 
 //
 // The collection state
@@ -48,7 +48,7 @@ func NewSimBodyCollection(bodies []*Body) *BodyCollection {
 		arr:    make([]*Body, len(bodies)),
 		events: list.New(),
 		lock:   sync.Mutex{},
-		evCh:   make(chan Event, 5000), // todo factor of body count
+		evCh:   make(chan Event, 5000), // todo factor of body count?
 		getBodyCh: make(chan
 		struct {
 			id   int
@@ -102,7 +102,7 @@ func (bc *BodyCollection) handleEvents() {
 }
 
 //
-// because the computation cycle is always running, this function provides a way for callers
+// Because the computation cycle is always running, this function provides a way for callers
 // to register a request to get a body. The function writes to a channel which is checked by the
 // 'HandleGetBody' function which is called by the collection's 'Cycle' method. That method finds
 // the body, clones it, and writes it to the channel that is checked by this function. This gives
@@ -117,7 +117,7 @@ func (bc *BodyCollection) GetBody(id int, name string) *Body {
 }
 
 //
-// if there is a 'get body' message on the 'getBodyCh' channel, then searches the body array for the
+// If there is a 'get body' message on the 'getBodyCh' channel, then searches the body array for the
 // body and if found, calls doSendBody to send the body on the 'sendBodyCh' channel
 //
 func (bc *BodyCollection) HandleGetBody() {
@@ -159,9 +159,9 @@ func (bc *BodyCollection) doSendBody(b *Body) {
 //
 func (bc *BodyCollection) ModBody(id int, name, class string, mods []string) func() grpcsimcb.ModBodyResult {
 	bc.modBodyCh <- struct {
-		id   int
+		id          int
 		name, class string
-		mods []string
+		mods        []string
 	}{id: id, name: name, class: class, mods: mods}
 	return func() grpcsimcb.ModBodyResult {
 		return <-bc.modBodyResultCh
@@ -169,7 +169,7 @@ func (bc *BodyCollection) ModBody(id int, name, class string, mods []string) fun
 }
 
 //
-// if there is a 'mod body' message on the 'modBodyCh' channel, then searches the body array for all matching
+// If there is a 'mod body' message on the 'modBodyCh' channel, then searches the body array for all matching
 // bodies and if found, calls ApplyMods on the body, then sends the result on the 'modBodyResultCh' channel
 //
 func (bc *BodyCollection) HandleModBody() {
@@ -188,10 +188,14 @@ func (bc *BodyCollection) HandleModBody() {
 			}
 		}
 		switch {
-		case found == 0: bc.modBodyResultCh <- grpcsimcb.NoMatch
-		case modified == 0: bc.modBodyResultCh <- grpcsimcb.ModNone
-		case found == modified: bc.modBodyResultCh <- grpcsimcb.ModAll
-		default: bc.modBodyResultCh <- grpcsimcb.ModSome
+		case found == 0:
+			bc.modBodyResultCh <- grpcsimcb.NoMatch
+		case modified == 0:
+			bc.modBodyResultCh <- grpcsimcb.ModNone
+		case found == modified:
+			bc.modBodyResultCh <- grpcsimcb.ModAll
+		default:
+			bc.modBodyResultCh <- grpcsimcb.ModSome
 		}
 	}
 }
@@ -208,7 +212,7 @@ func (bc *BodyCollection) IterateOnce(c IterationConsumer) {
 }
 
 //
-// Gets the number of bodies in the array
+// Gets the number of bodies in the collection
 //
 func (bc *BodyCollection) Count() int {
 	bc.lock.Lock()
@@ -259,7 +263,7 @@ func (bc *BodyCollection) countAdds() int {
 
 //
 // Called by computation runner to prepare the body collection for another compute cycle. Removes refs
-// to bodies that have been set not to exist, and resolves collisions and fragmentations which have to be
+// to bodies that have been set not to exist, and resolves collisions and fragmentation which have to be
 // done in a single thread to avoid race conditions.
 //
 // args:

@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+//
+// Implements a work pool. A pool of Go routines is started and is fed work by the computation
+// runner. Goal was to avoid the overhead of spinning up and destroying multiple go routines on
+// each compute cycle - every 16 milliseconds at 60 FPS. Not convinced there isn't a more idiomatic
+// Go approach. Work yet to be done here. The goal was equivalency with the Java app which uses
+// a ThreadPoolExecutor and an ExecutorCompletionService to implement the same functionality.
+//
+
 /*
 #define _GNU_SOURCE
 #include <sched.h>
@@ -24,7 +32,7 @@ void lock_thread(int cpuid) {
 import "C"
 
 //
-// Defines the worker pool state
+// Worker pool state
 //
 type WorkPool struct {
 	// dynamically updated by the 'submit' function to round-robin work into the pool
@@ -41,11 +49,11 @@ type WorkPool struct {
 	// how to resize the pool
 	resizeCh chan int
 	// tracks the ID of the most recently created worker
-	maxId    int
+	maxId int
 }
 
 //
-// Defines the worker state
+// Worker state
 //
 type Worker struct {
 	// unique ID per worker
@@ -62,17 +70,18 @@ type Worker struct {
 }
 
 //
-// A worker goroutine that is started by the work pool. Waits for a body on its 'compute' channel and when
-// it gets a body, calls the 'Compute' method on the the body. Is stopped using the 'stop'
-// channel
+// A worker goroutine that is started by the work pool. Waits for a body on its 'compute' channel (or
+// 'computeSlice' channel) and when it gets a body, calls the 'Compute' method on the the body. Worker is
+// stopped using the 'stop' channel
 //
 // args:
 //   w   This worker
-//   wg  Wait group to signal completion of force calculation for the body
+//   wg  Wait group to signal completion of force calculation for the body or slice
 //   bc  The collection wrapper over the bodies in the sim
 //
 func worker(w *Worker, wg *sync.WaitGroup, bc *body.BodyCollection) {
 	millis := int64(0)
+	// does not seem to make much difference in performance
 	//runtime.LockOSThread()
 	//C.lock_thread(C.int(w.id))
 	invocations := 0
@@ -142,7 +151,7 @@ func (wp *WorkPool) createWorkers(goroutines int) {
 		w := Worker{
 			id:           wp.maxId,
 			stop:         make(chan bool),
-			compute:      make(chan *body.Body, 5), // TODO REVISIT COUNT
+			compute:      make(chan *body.Body, 5),
 			computeSlice: make(chan []*body.Body, 5),
 			invocations:  0,
 			millis:       0,
@@ -164,7 +173,7 @@ func (wp *WorkPool) ShutDownWorkPool() {
 }
 
 //
-// signals the internal channel with a new pool size. The 'submit' functions monitor
+// Signals the internal channel with a new pool size. The 'submit' functions monitor
 // the channel and implement the resize
 //
 func (wp *WorkPool) SetPoolSize(workers int) {
@@ -198,7 +207,7 @@ func (wp *WorkPool) submit(c *body.Body) {
 
 //
 // Submits a slice of the body array to the pool for computation - slightly faster
-// than the other way
+// than the other way (a few FPS depending on number of bodies)
 //
 func (wp *WorkPool) submitSlice(bodySlice []*body.Body) {
 	wp.chkResize()

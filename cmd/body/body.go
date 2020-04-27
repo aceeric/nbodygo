@@ -53,7 +53,7 @@ type Body struct {
 }
 
 //
-// creates a body that exists with hard-coded values and properties typically of
+// Creates a body that exists with hard-coded values and properties typically of
 // interest specified as function args
 //
 func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float64, collisionBehavior globals.CollisionBehavior,
@@ -133,10 +133,10 @@ func (b *Body) Update(timeScaling, R float64) *Renderable {
 	b.collided = false
 	b.r = R
 	if b.WithTelemetry {
-		// TODO print b to console
+		// todo print b to console
 	}
 	if math.IsNaN(b.X) || math.IsNaN(b.Y) || math.IsNaN(b.Z) {
-		// TODO logger
+		// todo logger
 		b.Exists = false
 	}
 	return NewRenderable(b)
@@ -183,10 +183,10 @@ func (b *Body) Compute(bc *BodyCollection) {
 }
 
 //
-// Accumulates gravitational force on this body from other body. Also checks proximity for collision
+// Accumulates gravitational force on this body from other body. Also checks for collisions
 //
-// returns a 'forceCalcResult' with 'collided' true if this body collided with otherBody,
-// else false.
+// returns true if this body collided with otherBody, else false. If true, second return value
+// is the distance between the centers of the two spheres.
 //
 func (b *Body) calcForceFrom(otherBody *Body) (bool, float64) {
 	dx := otherBody.X - b.X
@@ -212,7 +212,7 @@ func (b *Body) ResolveSubsume(otherBody *Body) {
 	thisMass = b.Mass
 	otherMass = otherBody.Mass
 	/*
-		TODO:
+		todo:
 		If I allow the radius to grow it occasionally causes a runaway condition in which a body
 		swallows the entire simulation. Need to figure this out
 		volume := (fourThirdsPi * b.radius  * b.radius  * b.radius) +
@@ -222,11 +222,11 @@ func (b *Body) ResolveSubsume(otherBody *Body) {
 	*/
 	b.Mass = thisMass + otherMass
 	otherBody.SetNotExists()
-	// TODO LOGGER
+	// todo logger
 }
 
 //
-// Determines whether an elastic collision or a fragmentation should be the result of a collision
+// Determines whether an elastic collision - or a fragmentation - should be the result of a collision
 // and invokes the appropriate function
 //
 func (b *Body) ResolveCollision(otherBody *Body) {
@@ -249,9 +249,12 @@ func (b *Body) ResolveCollision(otherBody *Body) {
 
 //
 // Applies the passed modifications to the body. Supports the ability to change characteristics of
-// a body in the simulation while the sim is running. The passed mods are an array of property=value
-// strings. E.g.: "color=blue". Or "x=123". Unknown properties are ignored. Parse errors are ignored.
-// If an array element is not in property=value form, it is ignored
+// a body in the simulation while the sim is running.
+//
+// args
+//   mods An array of property=value strings. E.g.: "color=blue". Or "x=123". Unknown properties
+//        are ignored. Parse errors are ignored. If an array element is not in property=value
+//        form, it is ignored
 //
 func (b *Body) ApplyMods(mods []string) bool {
 	for _, mod := range mods {

@@ -13,23 +13,21 @@ bazel build not working
 
 but this works:
 go build -o $(pwd) ./...
+go build -o $(pwd) ./cmd/server
 
 TODO
 
-- pointer vs copy consistency
 - gRPC client
-- g3n directory structure (pkg?)
+- g3n directory structure (pkg > g3ngola?)
 - instrumentation
-- Bazel (or Make?)
+- Bazel or Make
 - enums
 - logging
 - tests
-- idiomatic
 - todos
-- handle CTRL-C? https://golangcode.com/handle-ctrl-c-exit-in-terminal/
 - build documentation (esp. steps for G3N)
 - readme cleanup
-
+- go docs
 grpc
 https://grpc.io/docs/quickstart/go/
 ```

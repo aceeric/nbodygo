@@ -56,7 +56,7 @@ func FromCsv(csvPath string, bodyCount int, defaultCollisionBehavior globals.Col
 	r := csv.NewReader(bufio.NewReader(file))
 	r.FieldsPerRecord = -1 // variable
 	r.Comment = '#'
-	for lines := 0; lines < bodyCount ;  {
+	for lines := 0; lines < bodyCount; {
 		fields, err := r.Read()
 		if err == io.EOF {
 			break
@@ -101,9 +101,9 @@ func FromCsv(csvPath string, bodyCount int, defaultCollisionBehavior globals.Col
 				fragStep = parseFloat(strings.TrimSpace(fields[12]))
 			}
 			b := body.NewBody(body.NextId(), x, y, z, vx, vy, vz, mass, radius, collisionBehavior, bodyColor, fragFactor,
-				fragStep, false, "", "",false)
+				fragStep, false, "", "", false)
 			if isSun {
-				b.SetSun(100) // todo support in csv?
+				b.SetSun(100)
 			}
 			bodies = append(bodies, b)
 			lines++

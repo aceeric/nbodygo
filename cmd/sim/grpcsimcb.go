@@ -8,7 +8,9 @@ import (
 )
 
 //
-// See grpcsimcb package
+// See 'grpcsimcb' package for details. This is the struct of callbacks that lets the
+// gRPC package call back into the sim without circular references that prevent a
+// successful compile
 //
 func newGrpcSimCb(bc *body.BodyCollection, crunner *runner.ComputationRunner,
 	rqh *runner.ResultQueueHolder) grpcsimcb.GrpcSimCallbacks {
@@ -53,7 +55,7 @@ func newGrpcSimCb(bc *body.BodyCollection, crunner *runner.ComputationRunner,
 			b := body.NewBody(id, x, y, z, vx, vy, vz, mass, radius, behavior, bodyColor, fragFactor, fragStep,
 				withTelemetry, name, class, pinned)
 			if isSun {
-				b.SetSun(100) // todo support passing intensity
+				b.SetSun(100) // todo mod gRPC to support intensity
 			}
 			bc.Enqueue(body.NewAdd(b))
 			return id

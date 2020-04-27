@@ -1,9 +1,5 @@
 package sim
 
-/*
-Contains functions to generate canned simulations
-*/
-
 import (
 	"math/rand"
 	"nbodygo/cmd/body"
@@ -16,11 +12,15 @@ import (
 )
 
 //
+// Contains functions to generate canned simulations
+//
+
+//
 // Some sims start a worker to inject bodies into the simulation after the sim is started, and return the
 // function so it can be called by the simulation runner (the Run function in the 'sim' package.) This defines
 // the function signature for those workers.
 //
-type SimWorker = func(*body.BodyCollection)
+type Worker = func(*body.BodyCollection)
 
 //
 // These declarations support reflection, which is used to get the function corresponding to the --sim-name
@@ -28,6 +28,7 @@ type SimWorker = func(*body.BodyCollection)
 //
 type Generator interface{}
 type generator struct{}
+
 var instance Generator = generator{}
 
 const (
@@ -42,7 +43,7 @@ const (
 //  simName           The name of the sim. This must be a function name in this package. E.g. "Sim1". The
 //                    matching function name is obtained using reflection
 //  bodyCount         The number of bodies
-//  collisionBehavior collision behavior if not explicitly defined by the sim
+//  collisionBehavior Collision behavior if not explicitly defined by the sim
 //	defaultBodyColor  " body color
 //	simArgs           Some sims take args to customize their behavior. Refer to the individual sim functions
 //                    for specifics
@@ -50,7 +51,7 @@ const (
 // returns: a list of bodies, and optionally a worker function to modify the sim after it starts
 //
 func Generate(simName string, bodyCount int, collisionBehavior globals.CollisionBehavior,
-	defaultBodyColor globals.BodyColor, simArgs string) ([]*body.Body, SimWorker) {
+	defaultBodyColor globals.BodyColor, simArgs string) ([]*body.Body, Worker) {
 
 	// use reflection to get the sim name passed in the 'simName' arg
 	value := reflect.ValueOf(instance)
@@ -73,7 +74,7 @@ func Generate(simName string, bodyCount int, collisionBehavior globals.Collision
 	retVals := method.Call(params)
 	// get the return values
 	bodies := retVals[0].Interface().([]*body.Body)
-	workerFunc := retVals[1].Interface().(SimWorker)
+	workerFunc := retVals[1].Interface().(Worker)
 	return bodies, workerFunc
 }
 
@@ -88,9 +89,9 @@ func Generate(simName string, bodyCount int, collisionBehavior globals.Collision
 //          (these are the defaults if no arg provided)
 //
 // returns: a list of bodies, no worker function
-
+//
 func (g generator) Sim1(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) ([]*body.Body, SimWorker) {
+	simArgs string) ([]*body.Body, Worker) {
 	var parsedSimArgs []string
 	clumpRadius := float64(30)
 	dist := float64(200)
@@ -176,7 +177,7 @@ func (g generator) Sim1(bodyCount int, collisionBehavior globals.CollisionBehavi
 // returns: a list of bodies, no worker function
 //
 func (g generator) Sim2(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) ([]*body.Body, SimWorker) {
+	simArgs string) ([]*body.Body, Worker) {
 	_ = simArgs
 	bodies := createSunAndAddToList([]*body.Body{}, body.NextId(), 0, 0, 0, 25*solarMass*.1, 25, 100)
 	rand.Seed(time.Now().UnixNano())
@@ -214,7 +215,7 @@ func (g generator) Sim2(bodyCount int, collisionBehavior globals.CollisionBehavi
 // returns: a list of bodies, and a worker function to insert additional bodies
 //
 func (g generator) Sim3(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) ([]*body.Body, SimWorker) {
+	simArgs string) ([]*body.Body, Worker) {
 	var parsedSimArgs []string
 	if len(simArgs) == 0 {
 		parsedSimArgs = []string{"50", "90E25", "700"}
@@ -288,14 +289,14 @@ func (g generator) Sim3(bodyCount int, collisionBehavior globals.CollisionBehavi
 // returns:  a list of bodies, and no sim worker
 
 func (g generator) Sim4(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) ([]*body.Body, SimWorker) {
-	_= simArgs
+	simArgs string) ([]*body.Body, Worker) {
+	_ = simArgs
 	bodies := createSunAndAddToList([]*body.Body{}, body.NextId(), 0, 0, 0, solarMass, 30, 90)
 	for i := 1; i < bodyCount; i++ {
 		mass := 9e5
 		radius := float64(2)
-		b := body.NewBody(body.NextId(), float64(i * 4) + 100, 0, 0, // x,y,z
-			0, 0, -824500000 + float64(i * 1E6), // vx,vy,vz
+		b := body.NewBody(body.NextId(), float64(i*4)+100, 0, 0, // x,y,z
+			0, 0, -824500000+float64(i*1E6), // vx,vy,vz
 			mass, radius, collisionBehavior, defaultBodyColor, 1, 1, false,
 			"", "", false)
 		bodies = append(bodies, b)
@@ -321,7 +322,7 @@ func (g generator) Sim4(bodyCount int, collisionBehavior globals.CollisionBehavi
 // returns a body list and a worker as described
 //
 func (g generator) Sim5(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) ([]*body.Body, SimWorker) {
+	simArgs string) ([]*body.Body, Worker) {
 	_ = bodyCount
 	_ = collisionBehavior
 	_ = defaultBodyColor
@@ -352,7 +353,7 @@ func (g generator) Sim5(bodyCount int, collisionBehavior globals.CollisionBehavi
 		globals.Blue, 0, 0, false, "", "", false)
 	bodies = append(bodies, m2)
 
-	m3 := body.NewBody(body.NextId(), 70, 0, -520, -880000000, -10000, -300000000 , 11E22, 15, globals.Elastic,
+	m3 := body.NewBody(body.NextId(), 70, 0, -520, -880000000, -10000, -300000000, 11E22, 15, globals.Elastic,
 		globals.Green, 0, 0, false, "", "", false)
 	bodies = append(bodies, m3)
 
@@ -364,7 +365,7 @@ func (g generator) Sim5(bodyCount int, collisionBehavior globals.CollisionBehavi
 	simWorker := func(bc *body.BodyCollection) {
 		for {
 			if bc.Count() > 6 {
-				bc.ModBody(planet.Id, "", "",  []string{"collision=subsume"})
+				bc.ModBody(planet.Id, "", "", []string{"collision=subsume"})
 				return
 			}
 			time.Sleep(time.Millisecond * 1000)
@@ -374,10 +375,12 @@ func (g generator) Sim5(bodyCount int, collisionBehavior globals.CollisionBehavi
 }
 
 //
-// Validate collision resolution using the deferred approach
+// Validate collision resolution using the deferred approach. Just a test for comparison with the Java version. If
+// the elastic collision were perfectly resolved then the bottom sphere would be sent directly down the Y axis with
+// no Z or X component of velocity.
 //
 func (g generator) SimTest(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) ([]*body.Body, SimWorker) {
+	simArgs string) ([]*body.Body, Worker) {
 	_ = bodyCount
 	_ = defaultBodyColor
 	_ = simArgs

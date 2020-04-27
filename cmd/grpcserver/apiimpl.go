@@ -173,20 +173,34 @@ func grpcColorToSimColor(color nbodygrpc.BodyColorEnum) globals.BodyColor {
 
 func SimColorToGrpcColor(color globals.BodyColor) nbodygrpc.BodyColorEnum {
 	switch color {
-	case globals.Black: return nbodygrpc.BodyColorEnum_BLACK
-	case globals.White: return nbodygrpc.BodyColorEnum_WHITE
-	case globals.Darkgray: return nbodygrpc.BodyColorEnum_DARKGRAY
-	case globals.Gray: return nbodygrpc.BodyColorEnum_GRAY
-	case globals.Lightgray: return nbodygrpc.BodyColorEnum_LIGHTGRAY
-	case globals.Red: return nbodygrpc.BodyColorEnum_RED
-	case globals.Green: return nbodygrpc.BodyColorEnum_GREEN
-	case globals.Blue: return nbodygrpc.BodyColorEnum_BLUE
-	case globals.Yellow: return nbodygrpc.BodyColorEnum_YELLOW
-	case globals.Magenta: return nbodygrpc.BodyColorEnum_MAGENTA
-	case globals.Cyan: return nbodygrpc.BodyColorEnum_CYAN
-	case globals.Orange: return nbodygrpc.BodyColorEnum_ORANGE
-	case globals.Brown: return nbodygrpc.BodyColorEnum_BROWN
-	case globals.Pink: return nbodygrpc.BodyColorEnum_PINK
+	case globals.Black:
+		return nbodygrpc.BodyColorEnum_BLACK
+	case globals.White:
+		return nbodygrpc.BodyColorEnum_WHITE
+	case globals.Darkgray:
+		return nbodygrpc.BodyColorEnum_DARKGRAY
+	case globals.Gray:
+		return nbodygrpc.BodyColorEnum_GRAY
+	case globals.Lightgray:
+		return nbodygrpc.BodyColorEnum_LIGHTGRAY
+	case globals.Red:
+		return nbodygrpc.BodyColorEnum_RED
+	case globals.Green:
+		return nbodygrpc.BodyColorEnum_GREEN
+	case globals.Blue:
+		return nbodygrpc.BodyColorEnum_BLUE
+	case globals.Yellow:
+		return nbodygrpc.BodyColorEnum_YELLOW
+	case globals.Magenta:
+		return nbodygrpc.BodyColorEnum_MAGENTA
+	case globals.Cyan:
+		return nbodygrpc.BodyColorEnum_CYAN
+	case globals.Orange:
+		return nbodygrpc.BodyColorEnum_ORANGE
+	case globals.Brown:
+		return nbodygrpc.BodyColorEnum_BROWN
+	case globals.Pink:
+		return nbodygrpc.BodyColorEnum_PINK
 	case globals.Random:
 		fallthrough
 	default:
@@ -211,9 +225,12 @@ func grpcCbToSimCb(behavior nbodygrpc.CollisionBehaviorEnum) globals.CollisionBe
 
 func simCbToGrpcCb(behavior globals.CollisionBehavior) nbodygrpc.CollisionBehaviorEnum {
 	switch behavior {
-	case globals.None: return nbodygrpc.CollisionBehaviorEnum_NONE
-	case globals.Subsume: return nbodygrpc.CollisionBehaviorEnum_SUBSUME
-	case globals.Fragment: return nbodygrpc.CollisionBehaviorEnum_FRAGMENT
+	case globals.None:
+		return nbodygrpc.CollisionBehaviorEnum_NONE
+	case globals.Subsume:
+		return nbodygrpc.CollisionBehaviorEnum_SUBSUME
+	case globals.Fragment:
+		return nbodygrpc.CollisionBehaviorEnum_FRAGMENT
 	default:
 		return nbodygrpc.CollisionBehaviorEnum_ELASTIC
 	}

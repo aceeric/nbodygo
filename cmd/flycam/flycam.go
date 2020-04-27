@@ -42,7 +42,7 @@ const (
 	DefaultEvId          = 1234567
 	EngageDisengageEvId  = 2345678
 	NoLastMousePos       = -1
-	FrustrumFar          = 10000 // TODO consider 400000 as in the Java version
+	FrustrumFar          = 10000
 	DefaultYaw           = -90.0
 	DefaultPitch         = 0.0
 	DefaultMovementSpeed = 1
@@ -105,6 +105,7 @@ func engage() {
 		flyCam.f12Bound = true
 		glfwWindow.SubscribeID(window.OnKeyUp, EngageDisengageEvId, handleF12)
 	} else {
+		// reset mouse for a smooth re-attachment
 		flyCam.lastMouseX, flyCam.lastMouseY = NoLastMousePos, NoLastMousePos
 	}
 	glfwWindow.SubscribeID(window.OnKeyUp, DefaultEvId, handleEsc)

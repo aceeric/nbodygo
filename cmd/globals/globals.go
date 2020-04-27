@@ -17,7 +17,6 @@ const (
 
 type BodyColor int
 
-// TODO ENUM
 const (
 	Random    BodyColor = 0
 	Black     BodyColor = 1

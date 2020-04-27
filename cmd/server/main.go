@@ -29,20 +29,20 @@ const (
 // command line
 //
 var vars = struct {
-	resolution [2]int
-	render bool
-	workers int
-	scaling float64
-	simName string
+	resolution               [2]int
+	render                   bool
+	workers                  int
+	scaling                  float64
+	simName                  string
 	defaultCollisionBehavior globals.CollisionBehavior
-	bodyCount int
-	csvPath string
-	defaultBodyColor globals.BodyColor
-	initialCam *math32.Vector3
-	simArgs string
-	vSync bool
-	frameRate int
-	runMillis int
+	bodyCount                int
+	csvPath                  string
+	defaultBodyColor         globals.BodyColor
+	initialCam               *math32.Vector3
+	simArgs                  string
+	vSync                    bool
+	frameRate                int
+	runMillis                int
 }{
 	resolution:               [2]int{2560, 1405},
 	render:                   true,
@@ -55,13 +55,13 @@ var vars = struct {
 	defaultBodyColor:         globals.Random,
 	initialCam:               math32.NewVector3(-100, 300, 1200),
 	simArgs:                  "",
-	vSync:                    false, // todo
-	frameRate:                0, // todo
-	runMillis:                -1, // run forever in --no-render mode
+	vSync:                    false, // todo figure out if g3n supports this
+	frameRate:                0,     // "
+	runMillis:                -1,    // run forever in --no-render mode
 }
 
 //
-// Entry point. Parses the command line, creates a sim based on command line args, and launches the sim
+// Parses the command line, creates a sim based on command line args, and launches the sim
 //
 func main() {
 	if !parseArgs() {
@@ -70,7 +70,7 @@ func main() {
 	// initialize a list of bodies representing the simulation, and optionally a worker function that
 	// will modify the body collection concurrently while the sim is running
 	var bodies []*body.Body
-	var simWorker sim.SimWorker
+	var simWorker sim.Worker
 
 	if len(vars.csvPath) > 0 {
 		bodies = sim.FromCsv(vars.csvPath, vars.bodyCount, vars.defaultCollisionBehavior, vars.defaultBodyColor)
@@ -131,9 +131,10 @@ func parseArgs() bool {
 		}
 		return nil
 	}
-	for arg := nextArg(); arg != nil ; arg = nextArg() {
+	for arg := nextArg(); arg != nil; arg = nextArg() {
 		switch strings.ToLower(*arg) {
-		case "-z": fallthrough
+		case "-z":
+			fallthrough
 		case "--resolution":
 			s := nextArg()
 			sSplit := regexp.MustCompile("[xX]").Split(*s, 2)
@@ -141,66 +142,78 @@ func parseArgs() bool {
 				println("Invalid resolution: " + *s)
 				return false
 			}
-			z, _ := strconv.ParseInt(sSplit[0],0, 32)
+			z, _ := strconv.ParseInt(sSplit[0], 0, 32)
 			vars.resolution[0] = int(z)
-			z, _ = strconv.ParseInt(sSplit[1],0, 32)
+			z, _ = strconv.ParseInt(sSplit[1], 0, 32)
 			vars.resolution[1] = int(z)
 			break
 		case "--vsync":
 			vars.vSync, _ = strconv.ParseBool(*nextArg())
 			break
 		case "--frame-rate":
-			z, _ := strconv.ParseInt(*nextArg(),0, 32)
+			z, _ := strconv.ParseInt(*nextArg(), 0, 32)
 			vars.frameRate = int(z)
 			break
-		case "--run-millis": fallthrough
+		case "--run-millis":
+			fallthrough
 		case "-u":
-			z, _ := strconv.ParseInt(*nextArg(),0, 32)
+			z, _ := strconv.ParseInt(*nextArg(), 0, 32)
 			vars.runMillis = int(z)
 			break
-		case "-r": fallthrough
+		case "-r":
+			fallthrough
 		case "--no-render":
 			vars.render = false
 			break
-		case "-n": fallthrough
+		case "-n":
+			fallthrough
 		case "--sim-name":
 			vars.simName = strings.Title(*nextArg())
 			break
-		case "-a": fallthrough
+		case "-a":
+			fallthrough
 		case "--sim-args":
 			vars.simArgs = *nextArg()
 			break
-		case "-c": fallthrough
+		case "-c":
+			fallthrough
 		case "--collision":
 			vars.defaultCollisionBehavior = globals.ParseCollisionBehavior(*nextArg())
 			break
-		case "-b": fallthrough
+		case "-b":
+			fallthrough
 		case "--bodies":
-			z, _ := strconv.ParseInt(*nextArg(),0, 32)
+			z, _ := strconv.ParseInt(*nextArg(), 0, 32)
 			vars.bodyCount = int(z)
 			break
-		case "-t": fallthrough
+		case "-t":
+			fallthrough
 		case "--threads":
-			z, _ := strconv.ParseInt(*nextArg(),0, 32)
+			z, _ := strconv.ParseInt(*nextArg(), 0, 32)
 			vars.workers = int(z)
 			break
-		case "-m": fallthrough
+		case "-m":
+			fallthrough
 		case "--scaling":
 			vars.scaling, _ = strconv.ParseFloat(*nextArg(), 32)
 			break
-		case "-f": fallthrough
+		case "-f":
+			fallthrough
 		case "--csv":
 			vars.csvPath = *nextArg()
 			break
-		case "-l": fallthrough
+		case "-l":
+			fallthrough
 		case "--body-color":
 			vars.defaultBodyColor = globals.ParseBodyColor(*nextArg())
 			break
-		case "-i": fallthrough
+		case "-i":
+			fallthrough
 		case "--initial-cam":
 			vars.initialCam = globals.ParseVector(*nextArg())
 			break
-		case "-h": fallthrough
+		case "-h":
+			fallthrough
 		case "--help":
 			println("Sorry: help not implemented yet...")
 			return false

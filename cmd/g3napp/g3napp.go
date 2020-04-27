@@ -66,7 +66,7 @@ func StartG3nApp(initialCam *math32.Vector3, width, height int, holder *runner.R
 		gui.Manager().Set(g3nApp.scene)
 		g3nApp.flyCam = flycam.NewFlyCam(window.Get().(*window.GlfwWindow), g3nApp.scene, width, height, *initialCam)
 
-		// TODO register screen resize callback
+		// todo register screen resize callback
 
 		// set the background to black
 		g3nApp.app.Gls().ClearColor(0.0, 0.0, 0.0, 1.0)
@@ -88,10 +88,7 @@ func StopG3nApp() {
 func renderLoop(renderer *renderer.Renderer, _ time.Duration) {
 	updateSim()
 	g3nApp.app.Gls().Clear(gls.DEPTH_BUFFER_BIT | gls.STENCIL_BUFFER_BIT | gls.COLOR_BUFFER_BIT)
-	err := renderer.Render(g3nApp.scene, g3nApp.flyCam.Cam())
-	if err != nil {
-		// TODO PANIC?
-	}
+	renderer.Render(g3nApp.scene, g3nApp.flyCam.Cam())
 }
 
 //
@@ -146,7 +143,7 @@ func updateSim() {
 }
 
 //
-// removes the passed mesh from the scene graph and if a light source is associated with the
+// Removes the passed mesh from the scene graph and if a light source is associated with the
 // mesh (based on id) remove that as well
 //
 func removeMeshFromSceneGraph(mesh *graphic.Mesh, id int) {
@@ -160,7 +157,7 @@ func removeMeshFromSceneGraph(mesh *graphic.Mesh, id int) {
 
 //
 // Translates a sim body color to a G3N body color. These color names are compatible with the Java version.
-// TODO support all G3N colors
+// todo support all G3N colors
 //
 func xlatColor(color globals.BodyColor) *math32.Color {
 	switch color {

@@ -7,7 +7,7 @@ import (
 )
 
 //
-// This go file just localizes the calculations that are related to implementing fragmentation
+// This go file contains the calculations that are related to implementing fragmentation
 // of a body on impact
 //
 
@@ -113,7 +113,5 @@ func (b *Body) fragment(bc *BodyCollection) {
 	}
 	if b.fragInfo.fragments <= 0 {
 		b.Exists = false
-	} else {
-		b.Radius = b.Radius * .9 // todo consider removing given the G3N cost
 	}
 }

@@ -6,7 +6,7 @@ import (
 )
 
 //
-// Builder pattern
+// Builder pattern. Builds an 'NBodySim' struct
 //
 
 type NBodySimBuilder struct {
@@ -14,12 +14,29 @@ type NBodySimBuilder struct {
 	workers    int
 	scaling    float64
 	initialCam math32.Vector3
-	simThread  SimWorker
+	simThread  Worker
 	render     bool
 	resolution [2]int
 	vSync      bool
 	frameRate  int
 	runMillis  int
+}
+
+func NewNBodySimBuilder() *NBodySimBuilder {
+	// initialize a builder with reasonable defaults in case overrides are not provided
+	b := NBodySimBuilder{
+		bodies:     []*body.Body{}, // no bodies
+		workers:    defaultWorkers,
+		scaling:    defaultTimeScaling,
+		initialCam: *math32.NewVector3(100, 100, 100),
+		simThread:  nil,
+		render:     true,
+		resolution: [2]int{2560, 1440},
+		vSync:      true, // not currently used
+		frameRate:  -1,   // not currently used
+		runMillis:  -1,
+	}
+	return &b
 }
 
 func (sb *NBodySimBuilder) Bodies(bodies []*body.Body) *NBodySimBuilder {
@@ -42,7 +59,7 @@ func (sb *NBodySimBuilder) InitialCam(initialCam math32.Vector3) *NBodySimBuilde
 	return sb
 }
 
-func (sb *NBodySimBuilder) SimWorker(simThread SimWorker) *NBodySimBuilder {
+func (sb *NBodySimBuilder) SimWorker(simThread Worker) *NBodySimBuilder {
 	sb.simThread = simThread
 	return sb
 }
@@ -73,35 +90,14 @@ func (sb *NBodySimBuilder) RunMillis(runMillis int) *NBodySimBuilder {
 }
 
 func (sb *NBodySimBuilder) Build() *NBodySim {
-	return newNBodySim(sb)
-}
-
-func newNBodySim(b *NBodySimBuilder) *NBodySim {
 	return &NBodySim{
-		bodies:     b.bodies,
-		workers:    b.workers,
-		scaling:    b.scaling,
-		initialCam: b.initialCam,
-		simWorker:  b.simThread,
-		render:     b.render,
-		resolution: b.resolution,
-		runMillis:  b.runMillis,
+		bodies:     sb.bodies,
+		workers:    sb.workers,
+		scaling:    sb.scaling,
+		initialCam: sb.initialCam,
+		simWorker:  sb.simThread,
+		render:     sb.render,
+		resolution: sb.resolution,
+		runMillis:  sb.runMillis,
 	}
-}
-
-func NewNBodySimBuilder() *NBodySimBuilder {
-	// initialize a builder with reasonable defaults in case overrides are not provided
-	b := NBodySimBuilder{
-		bodies:     []*body.Body{}, // no bodies
-		workers:    defaultWorkers,
-		scaling:    defaultTimeScaling,
-		initialCam: *math32.NewVector3(100, 100, 100),
-		simThread:  nil,
-		render:     true,
-		resolution: [2]int{2560, 1440},
-		vSync:      true, // not currently used
-		frameRate:  -1, // not currently used
-		runMillis:  -1,
-	}
-	return &b
 }

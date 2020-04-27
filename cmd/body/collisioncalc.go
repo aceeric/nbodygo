@@ -11,9 +11,9 @@ import "math"
 // The 'collisionCalcResult' struct holds the output of an elastic collision calculation
 //
 type collisionCalcResult struct {
-	collided bool
-	vx1, vy1, vz1 float64
-	vx2, vy2, vz2 float64
+	collided            bool
+	vx1, vy1, vz1       float64
+	vx2, vy2, vz2       float64
 	vx_cm, vy_cm, vz_cm float64
 }
 
@@ -84,8 +84,8 @@ func (b *Body) calcElasticCollision(otherBody *Body) collisionCalcResult {
 
 	// return if relative speed = 0
 	if v == 0 {
-		// TODO LOGGING
-		return collisionCalcResult{collided:false}
+		// todo logging
+		return collisionCalcResult{collided: false}
 	}
 	// shift coordinate system so that ball 1 is at the origin
 	x2 = x21
@@ -132,8 +132,8 @@ func (b *Body) calcElasticCollision(otherBody *Body) collisionCalcResult {
 
 	// if balls do not collide, do nothing
 	if thetav > math.Pi/2 || math.Abs(dr) > 1 {
-		// TODO LOGGING
-		return collisionCalcResult{collided:false}
+		// todo logging
+		return collisionCalcResult{collided: false}
 	}
 	// calculate impact angles if balls do collide
 	alpha = math.Asin(-dr)
@@ -170,15 +170,14 @@ func (b *Body) calcElasticCollision(otherBody *Body) collisionCalcResult {
 
 	return collisionCalcResult{
 		collided: true,
-		vx1: ct*cp*vx1r-sp*vy1r+st*cp*vz1r+vx2,
-		vy1: ct*sp*vx1r+cp*vy1r+st*sp*vz1r+vy2,
-		vz1: ct*vz1r-st*vx1r+vz2,
-		vx2: ct*cp*vx2r-sp*vy2r+st*cp*vz2r+vx2,
-		vy2: ct*sp*vx2r+cp*vy2r+st*sp*vz2r+vy2,
-		vz2: ct*vz2r-st*vx2r+vz2,
-		vx_cm: vx_cm,
-		vy_cm: vy_cm,
-		vz_cm: vz_cm,
+		vx1:      ct*cp*vx1r - sp*vy1r + st*cp*vz1r + vx2,
+		vy1:      ct*sp*vx1r + cp*vy1r + st*sp*vz1r + vy2,
+		vz1:      ct*vz1r - st*vx1r + vz2,
+		vx2:      ct*cp*vx2r - sp*vy2r + st*cp*vz2r + vx2,
+		vy2:      ct*sp*vx2r + cp*vy2r + st*sp*vz2r + vy2,
+		vz2:      ct*vz2r - st*vx2r + vz2,
+		vx_cm:    vx_cm,
+		vy_cm:    vy_cm,
+		vz_cm:    vz_cm,
 	}
 }
-
