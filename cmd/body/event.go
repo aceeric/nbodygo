@@ -4,6 +4,7 @@ package body
 // Enum that defines the events that are handled
 //
 type EventType int
+
 const (
 	CollisionEvent EventType = 0
 	SubsumeEvent   EventType = 1
@@ -44,7 +45,7 @@ func (ev Event) Handle() {
 	case SubsumeEvent:
 		ev.TwoBodies.b1.ResolveSubsume(ev.TwoBodies.b2)
 	case AddEvent:
-		panic("AddEvent not handled here -- handled by body collection")
+		panic("Event not handled here -- handled by body collection")
 	}
 }
 
@@ -54,7 +55,7 @@ func (ev Event) Handle() {
 func (ev Event) GetAdd() SimBody {
 	if ev.evType == AddEvent {
 		return ev.OneBody.b
-	}  else {
+	} else {
 		return nil
 	}
 }
@@ -64,10 +65,10 @@ func (ev Event) GetAdd() SimBody {
 //
 func NewCollision(b1 SimBody, b2 SimBody) Event {
 	return Event{
-		evType:    CollisionEvent,
+		evType: CollisionEvent,
 		TwoBodies: TwoBodies{
-			b1:b1,
-			b2:b2,
+			b1: b1,
+			b2: b2,
 		},
 	}
 }
@@ -77,7 +78,7 @@ func NewCollision(b1 SimBody, b2 SimBody) Event {
 //
 func NewSubsume(b1 SimBody, b2 SimBody) Event {
 	return Event{
-		evType:    SubsumeEvent,
+		evType: SubsumeEvent,
 		TwoBodies: TwoBodies{
 			b1: b1, // subsumes b2
 			b2: b2, // subsumed by b1
@@ -90,7 +91,7 @@ func NewSubsume(b1 SimBody, b2 SimBody) Event {
 //
 func NewAdd(b SimBody) Event {
 	return Event{
-		evType:    AddEvent,
+		evType: AddEvent,
 		OneBody: OneBody{
 			b: b,
 		},

@@ -3,21 +3,20 @@ package runner
 import "nbodygo/cmd/renderable"
 
 //
-// A result queue holder holds a fixed size queue of result queues allowing the computation
-// runner to slightly outrun the render engine
+// Implements a holder of queues. Each queue holds the information needed to render a body in the
+// graphics engine. The holder allows computation to outrun rendering by a fixed amount. The holder
+// provides queues in FIFO order, and can also be concurrently resized. The resize functionality depends
+// on a channel which is continually read/written containing the index into the active queue. On resize, a
+// new queue is created, the existing queue contents are copied, and the the new queue is activated
+// by writing its index into the selector channel. So the active queue is either at index zero or
+// one. This approach also synchronizes calls into the queue so the resize can be done in a
+// thread-safe manner. The design only supports one thread adding queues into the holder - with
+// no limit on consumers.
 //
-type ResultQueueHolder struct {
-	selector chan int
-	queues [2]struct {
-		ch chan *ResultQueue
-		maxQueues int
-	}
-	queueNum  uint
-	resizable bool
-}
 
 //
-// A result queue holds an array of objects
+// A result queue holds an array of objects with information needed to render them in the graphics
+// engine
 //
 type ResultQueue struct {
 	computed bool
@@ -33,7 +32,14 @@ func (rq *ResultQueue) Queue() []renderable.Renderable {
 }
 
 //
-// Creates and returns a new result queue
+// Adds the passed item to the queue
+//
+func (rq *ResultQueue) Add(info renderable.Renderable) {
+	rq.queue = append(rq.queue, info)
+}
+
+//
+// Creates and returns a new result queue - but does not add the queue to the holder
 //
 func newResultQueue(queNum uint) *ResultQueue  {
 	return &ResultQueue{
@@ -44,14 +50,21 @@ func newResultQueue(queNum uint) *ResultQueue  {
 }
 
 //
-// Adds the passed item to the queue
+// A result queue holder holds a fixed size queue of result queues allowing the computation
+// runner to slightly outrun the render engine
 //
-func (rq *ResultQueue) Add(info renderable.Renderable) {
-	rq.queue = append(rq.queue, info)
+type ResultQueueHolder struct {
+	selector chan int
+	queues [2]struct {
+		ch chan *ResultQueue
+		maxQueues int
+	}
+	queueNum  uint
+	resizable bool
 }
 
 //
-// Adds the queue to the queue holder
+// Adds the passed queue to the queue holder
 //
 func (rqh *ResultQueueHolder) Add(queue *ResultQueue) {
 	if !rqh.resizable {
@@ -59,7 +72,7 @@ func (rqh *ResultQueueHolder) Add(queue *ResultQueue) {
 		return
 	}
 	q := <-rqh.selector
-	if len(rqh.queues[q].ch) == cap(rqh.queues[q].ch){
+	if len(rqh.queues[q].ch) >= rqh.queues[q].maxQueues {
 		panic("No queue capacity")
 	}
 	rqh.queues[q].ch<- queue
@@ -68,7 +81,7 @@ func (rqh *ResultQueueHolder) Add(queue *ResultQueue) {
 
 //
 // Initializes a new result queue holder with capacity = 'maxQueues', and resizable based on the
-// resizable arg.
+// resizable arg
 //
 func NewResultQueueHolder(maxQueues int, resizable bool) ResultQueueHolder {
 	rqh := ResultQueueHolder{
@@ -128,7 +141,6 @@ func (rqh *ResultQueueHolder) Next() (*ResultQueue, bool) {
 		}
 	}
 	q := <-rqh.selector
-	//fmt.Printf("q: %v len: %v max: %v\n", q, len(rqh.queues[q].ch), rqh.queues[q].maxQueues)
 	select {
 	case queue := <-rqh.queues[q].ch:
 		rqh.selector<- q
@@ -140,8 +152,8 @@ func (rqh *ResultQueueHolder) Next() (*ResultQueue, bool) {
 }
 
 //
-// returns the max number of queues supported by the result queue holder and the current
-// queue length in return value two
+// return: the max number of queues in return value one supported by the result queue holder,
+// and the current queue length in return value two
 //
 func (rqh *ResultQueueHolder) MaxQueues() (int, int) {
 	if !rqh.resizable {
@@ -154,6 +166,23 @@ func (rqh *ResultQueueHolder) MaxQueues() (int, int) {
 	return max, ln
 }
 
+//
+// Resizes the queue holder. Note regarding concurrency: the computation runner checks to
+// see if there is capacity in the holder before beginning a compute cycle. If there is, it gets
+// a queue and runs the compute cycle. Upon completion of the compute cycle the runner then
+// adds the result queue to the holder. This is important because the runner doesn't want to waste
+// cpu if there is no queue capacity and - once a compute cycle finishes those results can't be
+// lost without causing jumpiness in the rendering. So the resize functionality leaves extra space
+// in the resized queue to accommodate this requirement. The use case is:
+//
+// computation runner asks for a new queue from the holder - and gets one - so there is capacity
+// resize event concurrently resizes the queue down leaving extra space
+// runner adds the queue to the holder - the add succeeds because of the extra space as described
+//
+// This only works because there is only one thread adding to the queue. It wouldn't work with more
+// than one thread adding. But the design of this holder is not intended to be general purpose - it is
+// specifically tailored to the requirements of the n-body simulation
+//
 func (rqh *ResultQueueHolder) Resize(maxQueues int) bool {
 	if !rqh.resizable {
 		return false
@@ -168,9 +197,9 @@ func (rqh *ResultQueueHolder) Resize(maxQueues int) bool {
 	curLen := len(rqh.queues[q].ch)
 	if maxQueues < curLen {
 		// need to preserve current queue contents. Since a concurrent call to NewResultQueue may have
-		// already reported it is ok to add a queue, if we shrink the queue that could fail the caller's
-		// subsequent concurrent call to 'Add'. So preserve physical queue size plus space to add even
-		// though logical queue size  matches caller's stipulation
+		// already reported that it is ok to add a queue, if we shrink the queue that could fail the caller's
+		// subsequent concurrent call to 'Add'. So preserve physical queue size plus space to add, but
+		// set logical queue size to match the caller's stipulation
 		sizeToUse = rqh.queues[q].maxQueues + 1
 	}
 	rqh.queues[q ^ 1] = struct {

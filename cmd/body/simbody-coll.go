@@ -1,5 +1,7 @@
 package body
 
+import "nbodygo/cmd/grpcsimcb"
+
 //
 // Function signature of a consumer provided to the 'IterateOnce' function
 //
@@ -17,6 +19,9 @@ type SimBodyCollection interface {
 	// Makes one traversal through the body array and invokes the passed consumer for each body
 	IterateOnce(IterationConsumer)
 
+	// returns a ref to the body array
+	GetArray() []SimBody
+
 	// Makes a copy of the body array for concurrent read access by another thread
 	GetArrayCopy() *[]SimBody
 
@@ -32,6 +37,10 @@ type SimBodyCollection interface {
 	// provides a copy of a body to the caller in a thread-safe manner
 	GetBody(id int, name string) func() SimBody
 
-	// TODO do I want this?
 	HandleGetBody()
+
+	// applies modifications to a body or bodies a thread-safe manner
+	ModBody(id int, name, class string, mods []string) func() grpcsimcb.ModBodyResult
+
+	HandleModBody()
 }

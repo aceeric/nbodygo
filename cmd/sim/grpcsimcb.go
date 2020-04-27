@@ -11,9 +11,11 @@ import (
 // See grpcsimcb package
 //
 func newGrpcSimCb(sbc body.SimBodyCollection, crunner *runner.ComputationRunner,
-	rqh runner.ResultQueueHolder) grpcsimcb.GrpcSimCallbacks {
+	rqh *runner.ResultQueueHolder) grpcsimcb.GrpcSimCallbacks {
 	return grpcsimcb.GrpcSimCallbacks{
-		SetResultQueueSize: nil, // TODO
+		SetResultQueueSize: func(maxQueues int) bool {
+			return rqh.Resize(maxQueues)
+		},
 		ResultQueueSize: func() int {
 			max, _ := rqh.MaxQueues()
 			return max
@@ -24,7 +26,9 @@ func newGrpcSimCb(sbc body.SimBodyCollection, crunner *runner.ComputationRunner,
 		Smoothing: func() float64 {
 			return crunner.TimeScaling()
 		},
-		SetComputationWorkers: nil, // TODO
+		SetComputationWorkers: func(count int) {
+			crunner.SetWorkers(count)
+		},
 		ComputationWorkers: func() int {
 			return crunner.WorkerCount()
 		},
@@ -54,7 +58,9 @@ func newGrpcSimCb(sbc body.SimBodyCollection, crunner *runner.ComputationRunner,
 			sbc.Enqueue(body.NewAdd(&b))
 			return id
 		},
-		ModBody: nil, // TODO
+		ModBody: func(id int, name, class string, mods []string) grpcsimcb.ModBodyResult {
+			return sbc.ModBody(id, name, class, mods)()
+		},
 		GetBody: func(id int, name string) grpcsimcb.BodyRaw {
 			b := sbc.GetBody(id, name)()
 			if b == nil {

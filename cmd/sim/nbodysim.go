@@ -6,6 +6,7 @@ import (
 	"nbodygo/cmd/grpcserver"
 	"nbodygo/cmd/runner"
 	"nbodygo/internal/pkg/math32"
+	"runtime"
 	"time"
 )
 
@@ -50,6 +51,10 @@ type NBodySim struct {
 
 	// Screen resolution
 	resolution [2]int
+
+	// if --no-render specified, then user can also specify --runmillis indicating how long
+	// to run the sim
+	runMillis int
 }
 
 //
@@ -70,18 +75,18 @@ type NBodySim struct {
 //
 func (sim NBodySim) Run() {
 	// TODO start instrumentation
-	sbc := body.NewSimBodyCollection(sim.bodies)
-	rqh := runner.NewResultQueueHolder(defaultMaxResultQueues, true)
+	sbc := body.NewSimBodyCollection(sim.bodies) // todo return interface vs return struct consistency
+	rqh := runner.NewResultQueueHolder(defaultMaxResultQueues, true) // todo all NEWs return pointers uniformly
 	simDone := make(chan bool) // to shut down the G3N engine
 	if sim.render {
-		g3napp.StartG3nApp(&sim.initialCam, sim.resolution[0], sim.resolution[1], rqh, simDone)
+		g3napp.StartG3nApp(&sim.initialCam, sim.resolution[0], sim.resolution[1], &rqh, simDone)
 	}
-	crunner := runner.NewComputationRunner(sim.workers, sim.scaling, rqh, sbc).Start()
-	grpcserver.Start(newGrpcSimCb(sbc, crunner, rqh))
+	crunner := runner.NewComputationRunner(sim.workers, sim.scaling, &rqh, sbc).Start()
+	grpcserver.Start(newGrpcSimCb(sbc, crunner, &rqh))
 	if sim.simWorker != nil {
 		go sim.simWorker(sbc)
 	}
-	waitForSimEnd(sim.render, &rqh, simDone)
+	waitForSimEnd(sim.render, &rqh, simDone, sim.runMillis)
 	grpcserver.Stop()
 	crunner.Stop()
 	// TODO stop instrumentation
@@ -93,11 +98,18 @@ func (sim NBodySim) Run() {
 // 'g3napp' package when the user presses ESC. If not rendering, then loops perpetually consuming the passed
 // result queue holder so the computation runner can run at max capacity. (Supports test/performance analysis)
 //
-func waitForSimEnd(render bool, rqh *runner.ResultQueueHolder, simDone chan bool) {
+// args:
+//  render    - if true, waits for the graphics engine to signal the passed 'simDone' channel then returns
+//  rqh       - holds queues of bodies with updated position
+//  simDone   - channel that G3N will signal on
+//  runMillis - if --no-render, then an amount of time to run before exiting. If -1, runs forever
+//
+func waitForSimEnd(render bool, rqh *runner.ResultQueueHolder, simDone chan bool, runMillis int) {
 	if render {
 		// wait for the user to press ESC which shuts down the G3N and then signals the simDone channel
 		<-simDone
 	} else {
+		start := time.Now()
 		for {
 			rq, ok := rqh.Next()
 			if ok {
@@ -107,12 +119,19 @@ func waitForSimEnd(render bool, rqh *runner.ResultQueueHolder, simDone chan bool
 				}
 			}
 			time.Sleep(noRenderSleepMs)
+			if runMillis != -1 {
+				elapsed := int(time.Now().Sub(start).Milliseconds())
+				if elapsed > runMillis {
+					return
+				}
+			}
+			runtime.Gosched()
 		}
 	}
 }
 
 //
-// Builder pattern
+// Builder pattern // TODO move to its own file?
 //
 type NBodySimBuilder interface {
 	Bodies([]body.SimBody) NBodySimBuilder
@@ -124,6 +143,7 @@ type NBodySimBuilder interface {
 	Resolution([2]int) NBodySimBuilder
 	VSync(bool) NBodySimBuilder
 	FrameRate(int) NBodySimBuilder
+	RunMillis(int) NBodySimBuilder
 	Build() NBodySim
 }
 
@@ -137,12 +157,14 @@ type nBodySimBuilder struct {
 	resolution [2]int
 	vSync      bool
 	frameRate  int
+	runMillis  int
 }
 
 func (b nBodySimBuilder) Bodies(bodies []body.SimBody) NBodySimBuilder {
 	b.bodies = bodies
 	return b
 }
+
 func (b nBodySimBuilder) Workers(threads int) NBodySimBuilder {
 	b.workers = threads
 	return b
@@ -183,6 +205,11 @@ func (b nBodySimBuilder) FrameRate(frameRate int) NBodySimBuilder {
 	return b
 }
 
+func (b nBodySimBuilder) RunMillis(runMillis int) NBodySimBuilder {
+	b.runMillis = runMillis
+	return b
+}
+
 func (b nBodySimBuilder) Build() NBodySim {
 	return newNBodySim(b)
 }
@@ -196,6 +223,7 @@ func newNBodySim(b nBodySimBuilder) NBodySim {
 		simWorker:  b.simThread,
 		render:     b.render,
 		resolution: b.resolution,
+		runMillis:  b.runMillis,
 	}
 }
 
@@ -211,6 +239,7 @@ func NewNBodySimBuilder() NBodySimBuilder {
 		resolution: [2]int{2560, 1440},
 		vSync:      true, // not currently used
 		frameRate:  -1, // not currently used
+		runMillis:  -1,
 	}
 	return b
 }

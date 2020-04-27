@@ -16,19 +16,20 @@ go build -o $(pwd) ./...
 
 TODO
 
-- https://developers.google.com/protocol-buffers/docs/reference/go-generated
-- gRPC server/client
--- get rid of SimBody and export all fields from Body
-- subsume does not appear to be working
+- get rid of SimBody and export all fields from Body
 - consider removing interfaces: SimBody, Renderable, SimBodyCollection?
+- pointer vs copy consistency
+- gRPC client
 - g3n directory structure (pkg?)
-- metrics
+- instrumentation
 - Bazel (or Make?)
 - enums
 - logging
 - tests
 - make the code idiomatic
 - todos
+- handle CTRL-C? https://golangcode.com/handle-ctrl-c-exit-in-terminal/
+- --no-render takes millis runtime ?
 - etc..
 
 grpc

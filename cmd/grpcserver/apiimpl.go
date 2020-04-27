@@ -13,30 +13,37 @@ import (
 //
 // These functions are the implementation of the gRPC interface. They simply delegate everything to the
 // callbacks in the passed nbodyServiceServer struct, and do some assembly/disassembly of data structures
+// to mediate between the simulation and gRPC
 //
 
 func (s *nbodyServiceServer) GetCurrentConfig(_ context.Context, in *empty.Empty) (*nbodygrpc.CurrentConfig, error) {
 	return &nbodygrpc.CurrentConfig{
-		Bodies:                 int64(s.gpcSim.BodyCount()),
-		ResultQueueSize:        int64(s.gpcSim.ResultQueueSize()),
-		ComputationThreads:     int64(s.gpcSim.ComputationWorkers()),
-		SmoothingFactor:        float32(s.gpcSim.Smoothing()),
-		RestitutionCoefficient: float32(s.gpcSim.RestitutionCoefficient()),
+		Bodies:                 int64(s.callbacks.BodyCount()),
+		ResultQueueSize:        int64(s.callbacks.ResultQueueSize()),
+		ComputationThreads:     int64(s.callbacks.ComputationWorkers()),
+		SmoothingFactor:        float32(s.callbacks.Smoothing()),
+		RestitutionCoefficient: float32(s.callbacks.RestitutionCoefficient()),
 	}, nil
 }
 
-// needs to remain unimplemented until the Worker Pool can support resize
 func (s *nbodyServiceServer) SetComputationThreads(_ context.Context, in *nbodygrpc.ItemCount) (*nbodygrpc.ResultCode, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetComputationThreads not implemented")
+	s.callbacks.SetComputationWorkers(int(in.ItemCount))
+	return &nbodygrpc.ResultCode{
+		ResultCode: nbodygrpc.ResultCode_OK,
+		Message:    "OK",
+	}, nil
 }
 
-// needs to remain unimplemented until the ResultQueueHolder can support resize in a performant manner
 func (s *nbodyServiceServer) SetResultQueueSize(_ context.Context, in *nbodygrpc.ItemCount) (*nbodygrpc.ResultCode, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetResultQueueSize not implemented")
+	s.callbacks.SetResultQueueSize(int(in.ItemCount)) // maybe it couldn't be resized but we don't care
+	return &nbodygrpc.ResultCode{
+		ResultCode: nbodygrpc.ResultCode_OK,
+		Message:    "OK",
+	}, nil
 }
 
 func (s *nbodyServiceServer) SetSmoothing(_ context.Context, in *nbodygrpc.Factor) (*nbodygrpc.ResultCode, error) {
-	s.gpcSim.SetSmoothing(float64(in.GetFactor()))
+	s.callbacks.SetSmoothing(float64(in.Factor))
 	return &nbodygrpc.ResultCode{
 		ResultCode: nbodygrpc.ResultCode_OK,
 		Message:    "OK",
@@ -44,7 +51,7 @@ func (s *nbodyServiceServer) SetSmoothing(_ context.Context, in *nbodygrpc.Facto
 }
 
 func (s *nbodyServiceServer) SetRestitutionCoefficient(_ context.Context, in *nbodygrpc.RestitutionCoefficient) (*nbodygrpc.ResultCode, error) {
-	s.gpcSim.SetRestitutionCoefficient(float64(in.GetRestitutionCoefficient()))
+	s.callbacks.SetRestitutionCoefficient(float64(in.RestitutionCoefficient))
 	return &nbodygrpc.ResultCode{
 		ResultCode: nbodygrpc.ResultCode_OK,
 		Message:    "OK",
@@ -52,7 +59,7 @@ func (s *nbodyServiceServer) SetRestitutionCoefficient(_ context.Context, in *nb
 }
 
 func (s *nbodyServiceServer) RemoveBodies(_ context.Context, in *nbodygrpc.ItemCount) (*nbodygrpc.ResultCode, error) {
-	s.gpcSim.RemoveBodies(int(in.GetItemCount()))
+	s.callbacks.RemoveBodies(int(in.ItemCount))
 	return &nbodygrpc.ResultCode{
 		ResultCode: nbodygrpc.ResultCode_OK,
 		Message:    "OK",
@@ -60,24 +67,24 @@ func (s *nbodyServiceServer) RemoveBodies(_ context.Context, in *nbodygrpc.ItemC
 }
 
 func (s *nbodyServiceServer) AddBody(_ context.Context, in *nbodygrpc.BodyDescription) (*nbodygrpc.ResultCode, error) {
-	mass := float64(in.GetMass())
-	x := float64(in.GetX())
-	y := float64(in.GetY())
-	z := float64(in.GetZ())
-	vx := float64(in.GetVx())
-	vy := float64(in.GetVy())
-	vz := float64(in.GetVz())
-	radius := float64(in.GetRadius())
-	isSun := in.GetIsSun()
-	fragFactor := float64(in.GetFragFactor())
-	fragStep := float64(in.GetFragStep())
-	withTelemetry := in.GetWithTelemetry()
-	name := in.GetName()
-	class := in.GetClass()
-	pinned := in.GetPinned()
-	behavior := grpcCbToSimCb(in.GetCollisionBehavior())
-	bodyColor := grpcColorToSimColor(in.GetBodyColor())
-	id := s.gpcSim.AddBody(mass, x, y, z, vx, vy, vz, radius, isSun, behavior, bodyColor,
+	mass := float64(in.Mass)
+	x := float64(in.X)
+	y := float64(in.Y)
+	z := float64(in.Z)
+	vx := float64(in.Vx)
+	vy := float64(in.Vy)
+	vz := float64(in.Vz)
+	radius := float64(in.Radius)
+	isSun := in.IsSun
+	fragFactor := float64(in.FragFactor)
+	fragStep := float64(in.FragStep)
+	withTelemetry := in.WithTelemetry
+	name := in.Name
+	class := in.Class
+	pinned := in.Pinned
+	behavior := grpcCbToSimCb(in.CollisionBehavior)
+	bodyColor := grpcColorToSimColor(in.BodyColor)
+	id := s.callbacks.AddBody(mass, x, y, z, vx, vy, vz, radius, isSun, behavior, bodyColor,
 		fragFactor, fragStep, withTelemetry, name, class, pinned)
 	return &nbodygrpc.ResultCode{
 		ResultCode: nbodygrpc.ResultCode_OK,
@@ -86,13 +93,17 @@ func (s *nbodyServiceServer) AddBody(_ context.Context, in *nbodygrpc.BodyDescri
 }
 
 func (s *nbodyServiceServer) ModBody(_ context.Context, in *nbodygrpc.ModBodyMessage) (*nbodygrpc.ResultCode, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ModBody not implemented")
+	result := s.callbacks.ModBody(int(in.Id), in.Name, in.Class, in.P)
+	return &nbodygrpc.ResultCode{
+		ResultCode: nbodygrpc.ResultCode_OK,
+		Message:    result.String(),
+	}, nil
 }
 
 func (s *nbodyServiceServer) GetBody(_ context.Context, in *nbodygrpc.ModBodyMessage) (*nbodygrpc.BodyDescription, error) {
-	id := int(in.GetId())
-	name := in.GetName()
-	rb := s.gpcSim.GetBody(id, name)
+	id := int(in.Id)
+	name := in.Name
+	rb := s.callbacks.GetBody(id, name)
 	if rb.Id == -1 {
 		return nil, status.Errorf(codes.Unimplemented, "No such body ID: %v", id)
 	}
@@ -205,4 +216,3 @@ func simCbToGrpcCb(behavior globals.CollisionBehavior) nbodygrpc.CollisionBehavi
 		return nbodygrpc.CollisionBehaviorEnum_ELASTIC
 	}
 }
-

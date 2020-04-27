@@ -5,6 +5,7 @@ import (
 	"nbodygo/cmd/globals"
 	"nbodygo/cmd/renderable"
 	"nbodygo/cmd/util"
+	"strings"
 	"sync"
 )
 
@@ -12,7 +13,6 @@ const (
 	G                float64 = 6.673e-11         // gravitational constant
 	fourThirdsPi     float64 = math.Pi * (4 / 3) // used in volume/radius calcs
 	fourPi           float64 = math.Pi * 4       // "
-	//R                float64 = 1                 // coefficient of  restitution
 	maxFragsPerCycle int     = 100
 	maxFrags         float64 = 2000
 )
@@ -35,18 +35,18 @@ type Body struct {
 	class                             string
 	fragmenting                       bool
 	x, y, z, vx, vy, vz, radius, mass float64
-	fragFactor, fragmentationStep float64
-	collisionBehavior             globals.CollisionBehavior
-	bodyColor                     globals.BodyColor
-	R                             float64
-	isSun                         bool
-	intensity                     float64
-	exists                        bool
-	withTelemetry                 bool
-	pinned                        bool
-	fragInfo                      fragInfo
-	fx, fy, fz                    float64
-	collided                      bool
+	fragFactor, fragmentationStep     float64
+	collisionBehavior                 globals.CollisionBehavior
+	bodyColor                         globals.BodyColor
+	R                                 float64
+	isSun                             bool
+	intensity                         float64
+	exists                            bool
+	withTelemetry                     bool
+	pinned                            bool
+	fragInfo                          fragInfo
+	fx, fy, fz                        float64
+	collided                          bool
 }
 
 type RawBody struct {
@@ -55,18 +55,18 @@ type RawBody struct {
 	Class                             string
 	Fragmenting                       bool
 	X, Y, Z, Vx, Vy, Vz, Radius, Mass float64
-	FragFactor, FragmentationStep float64
-	CollisionBehavior             globals.CollisionBehavior
-	BodyColor                     globals.BodyColor
-	R                             float64
-	IsSun                         bool
-	Intensity                     float64
-	Exists                        bool
-	WithTelemetry                 bool
-	Pinned                        bool
-	FragInfo                      fragInfo
-	Fx, Fy, Fz                    float64
-	Collided                      bool
+	FragFactor, FragmentationStep     float64
+	CollisionBehavior                 globals.CollisionBehavior
+	BodyColor                         globals.BodyColor
+	R                                 float64
+	IsSun                             bool
+	Intensity                         float64
+	Exists                            bool
+	WithTelemetry                     bool
+	Pinned                            bool
+	FragInfo                          fragInfo
+	Fx, Fy, Fz                        float64
+	Collided                          bool
 }
 
 // SO BAD !!!!! TODO DELETEME FAST!
@@ -141,12 +141,6 @@ func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float64, collisionBehavio
 	return b
 }
 
-// TODO getters?
-
-func (b *Body) mod() bool {
-	return false // TODO
-}
-
 // begin SimBody and Renderable interface implementation(s)
 
 func (b *Body) Id() int                      { return b.id }
@@ -196,6 +190,9 @@ func (b *Body) Update(timeScaling, R float64) renderable.Renderable {
 }
 
 func (b *Body) Compute(sbc SimBodyCollection) {
+	if !b.exists {
+		return
+	}
 	if b.fragmenting {
 		b.fragment(sbc)
 		return
@@ -211,12 +208,12 @@ func (b *Body) Compute(sbc SimBodyCollection) {
 			result := b.calcForceFrom(otherBody)
 			if result.collided {
 				if (b.collisionBehavior == globals.Elastic || b.collisionBehavior == globals.Fragment) &&
-					(otherBody.collisionBehavior == globals.Elastic || otherBody.collisionBehavior == globals.Fragment){
+					(otherBody.collisionBehavior == globals.Elastic || otherBody.collisionBehavior == globals.Fragment) {
 					sbc.Enqueue(NewCollision(b, otherBody))
 				} else if b.collisionBehavior == globals.Subsume || otherBody.collisionBehavior == globals.Subsume {
-					if b.radius > otherBody.radius && result.dist + otherBody.radius >= b.radius * 1.2 {
+					if b.radius > otherBody.radius && result.dist <= b.radius {
 						sbc.Enqueue(NewSubsume(b, otherBody))
-					} else if b.radius <= otherBody.radius && result.dist + b.radius >= otherBody.radius * 1.2 {
+					} else if otherBody.radius > b.radius && result.dist <= otherBody.radius {
 						sbc.Enqueue(NewSubsume(otherBody, b))
 					}
 				}
@@ -236,7 +233,7 @@ func (b *Body) calcForceFrom(otherBody *Body) forceCalcResult {
 	dy := otherBody.y - b.y
 	dz := otherBody.z - b.z
 	dist := math.Sqrt(dx*dx + dy*dy + dz*dz)
-	if dist > b.radius + otherBody.radius {
+	if dist > b.radius+otherBody.radius {
 		force := G * b.mass * otherBody.mass / (dist * dist)
 		b.fx += force * dx / dist
 		b.fy += force * dy / dist
@@ -287,12 +284,12 @@ func (b *Body) ResolveCollision(otherBody SimBody) {
 }
 
 func (b *Body) doElastic(otherBody *Body, r collisionCalcResult) {
-	b.vx = (r.vx1 - r.vx_cm) * b.R + r.vx_cm
-	b.vy = (r.vy1 - r.vy_cm) * b.R + r.vy_cm
-	b.vz = (r.vz1 - r.vz_cm) * b.R + r.vz_cm
-	otherBody.vx = (r.vx2 - r.vx_cm) * b.R + r.vx_cm
-	otherBody.vy = (r.vy2 - r.vy_cm) * b.R + r.vy_cm
-	otherBody.vz = (r.vz2 - r.vz_cm) * b.R + r.vz_cm
+	b.vx = (r.vx1-r.vx_cm)*b.R + r.vx_cm
+	b.vy = (r.vy1-r.vy_cm)*b.R + r.vy_cm
+	b.vz = (r.vz1-r.vz_cm)*b.R + r.vz_cm
+	otherBody.vx = (r.vx2-r.vx_cm)*b.R + r.vx_cm
+	otherBody.vy = (r.vy2-r.vy_cm)*b.R + r.vy_cm
+	otherBody.vz = (r.vz2-r.vz_cm)*b.R + r.vz_cm
 	b.collided = true
 	otherBody.collided = true
 }
@@ -442,6 +439,53 @@ func (b *Body) calcElasticCollision(otherBody *Body) collisionCalcResult {
 		ct*sp*vx2r+cp*vy2r+st*sp*vz2r+vy2,
 		ct*vz2r-st*vx2r+vz2,
 		vx_cm, vy_cm, vz_cm)
+}
+
+//
+// Applies the passed modifications to the body. Supports the ability to change characteristics of
+// a body in the simulation while the sim is running. The passed mods are an array of property=value
+// strings. E.g.: "sun=true". Or "x=123". Unknown properties are ignored. Parse errors are ignored.
+// If an array element is not in property=value form, it is ignored
+//
+func (b *Body) ApplyMods(mods []string) bool {
+	for _, mod := range mods {
+		nvp := strings.Split(mod, "=")
+		if len(nvp) == 2 {
+			switch strings.ToUpper(nvp[0]) {
+			case "X":
+				b.x = globals.SafeParseFloat(nvp[1], b.x)
+			case "Y":
+				b.y = globals.SafeParseFloat(nvp[1], b.y)
+			case "Z":
+				b.z = globals.SafeParseFloat(nvp[1], b.z)
+			case "VX":
+				b.vx = globals.SafeParseFloat(nvp[1], b.vx)
+			case "VY":
+				b.vy = globals.SafeParseFloat(nvp[1], b.vy)
+			case "VZ":
+				b.vz = globals.SafeParseFloat(nvp[1], b.vz)
+			case "MASS":
+				b.mass = globals.SafeParseFloat(nvp[1], b.mass)
+			case "RADIUS":
+				b.radius = globals.SafeParseFloat(nvp[1], b.radius)
+			case "FRAG_FACTOR":
+				b.fragFactor = globals.SafeParseFloat(nvp[1], b.fragFactor)
+			case "FRAG_STEP":
+				b.fragmentationStep = globals.SafeParseFloat(nvp[1], b.fragmentationStep)
+			case "SUN":
+				b.isSun = globals.ParseBoolean(nvp[1]) // todo implement in g3napp
+			case "COLLISION":
+				b.collisionBehavior = globals.ParseCollisionBehavior(nvp[1])
+			case "COLOR":
+				b.bodyColor = globals.ParseBodyColor(nvp[1])
+			case "TELEMETRY":
+				b.withTelemetry = globals.ParseBoolean(nvp[1])
+			case "EXISTS":
+				b.exists = globals.ParseBoolean(nvp[1])
+			}
+		}
+	}
+	return true
 }
 
 var idGenerator = struct {

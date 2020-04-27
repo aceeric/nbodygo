@@ -18,22 +18,22 @@ var grpcServer *grpc.Server
 
 type nbodyServiceServer struct {
 	nbodygrpc.UnimplementedNBodyServiceServer
-	gpcSim grpcsimcb.GrpcSimCallbacks
+	callbacks grpcsimcb.GrpcSimCallbacks
 }
 
-func newServer(gpcSim grpcsimcb.GrpcSimCallbacks) nbodygrpc.NBodyServiceServer {
-	return &nbodyServiceServer{gpcSim: gpcSim}
+func newServer(callbacks grpcsimcb.GrpcSimCallbacks) nbodygrpc.NBodyServiceServer {
+	return &nbodyServiceServer{callbacks: callbacks}
 }
 
-func Start(gpcSim grpcsimcb.GrpcSimCallbacks) {
+func Start(callbacks grpcsimcb.GrpcSimCallbacks) {
 	grpcServer = grpc.NewServer()
 	reflection.Register(grpcServer)
-	nbodygrpc.RegisterNBodyServiceServer(grpcServer, newServer(gpcSim))
+	nbodygrpc.RegisterNBodyServiceServer(grpcServer, newServer(callbacks))
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
 		panic("Failed to open port " + strconv.Itoa(port))
 	}
-	go grpcServer.Serve(lis) // todo can you go a func and handle the error?
+	go grpcServer.Serve(lis)
 }
 
 func Stop() {

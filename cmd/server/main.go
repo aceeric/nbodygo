@@ -20,7 +20,7 @@ const (
 	// if no sim name is provided on the command line, run this sim
 	defaultSimName = "Sim1"
 
-	// empty sim starts everything up with on bodies
+	// empty sim starts everything up with on bodies: --sim-name=Empty
 	emptySimName = "Empty"
 )
 
@@ -42,6 +42,7 @@ var vars = struct {
 	simArgs string
 	vSync bool
 	frameRate int
+	runMillis int
 }{
 	resolution:               [2]int{2560, 1405},
 	render:                   true,
@@ -56,6 +57,7 @@ var vars = struct {
 	simArgs:                  "",
 	vSync:                    false, // todo
 	frameRate:                0, // todo
+	runMillis:                -1, // run forever in --no-render mode
 }
 
 //
@@ -93,6 +95,7 @@ func main() {
 		Resolution(vars.resolution).
 		VSync(vars.vSync).
 		FrameRate(vars.frameRate).
+		RunMillis(vars.runMillis).
 		Build().
 		Run()
 }
@@ -149,6 +152,11 @@ func parseArgs() bool {
 		case "--frame-rate":
 			z, _ := strconv.ParseInt(*nextArg(),0, 32)
 			vars.frameRate = int(z)
+			break
+		case "--run-millis": fallthrough
+		case "-u":
+			z, _ := strconv.ParseInt(*nextArg(),0, 32)
+			vars.runMillis = int(z)
 			break
 		case "-r": fallthrough
 		case "--no-render":

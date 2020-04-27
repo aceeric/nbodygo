@@ -36,6 +36,9 @@ const (
 	Pink      BodyColor = 14
 )
 
+//
+// if the passed value is a valid collision behavior, then returns it, else returns 'Elastic'
+//
 func ParseCollisionBehavior(s string) CollisionBehavior {
 	for i, item := range []string{"none", "subsume", "elastic", "fragment"} {
 		if item == strings.ToLower(s) {
@@ -45,7 +48,10 @@ func ParseCollisionBehavior(s string) CollisionBehavior {
 	return Elastic
 }
 
-func parseBoolean(s string) bool {
+//
+// if the passed value is a valid boolean, then returns it, else returns 'false'
+//
+func ParseBoolean(s string) bool {
 	switch strings.ToLower(s) {
 	case "t", "true", "1", "y", "yes":
 		return true
@@ -53,6 +59,9 @@ func parseBoolean(s string) bool {
 	return false
 }
 
+//
+// if the passed value is a valid body color, then returns it, else returns 'Random'
+//
 func ParseBodyColor(s string) BodyColor {
 	for i, item := range []string{"random", "black", "white", "darkgray", "gray", "lightgray", "red",
 		"green", "blue", "yellow", "magenta", "cyan", "orange", "brown", "pink"} {
@@ -63,6 +72,9 @@ func ParseBodyColor(s string) BodyColor {
 	return Random
 }
 
+//
+// parses the passed csv as a vector: "10,20,30" parses to vector {10, 20, 30}
+//
 func ParseVector(s string) *math32.Vector3 {
 	components := strings.Split(s, ",")
 	if len(components) != 3 {
@@ -74,4 +86,18 @@ func ParseVector(s string) *math32.Vector3 {
 	return &math32.Vector3{
 		X: float32(x), Y: float32(y), Z: float32(z),
 	}
+}
+
+//
+// if the passed value can be parsed as a float then parses and returns it, else returns the
+// current value. So:
+// 	 f := float64(1)
+//	 f = SafeParseFloat("foo", f)
+// does not change f
+//
+func SafeParseFloat(s string, cur float64) float64 {
+	for parsed, err := strconv.ParseFloat(s, 64); err == nil; {
+		return parsed
+	}
+	return cur
 }

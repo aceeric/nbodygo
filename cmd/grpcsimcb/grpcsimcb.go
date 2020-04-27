@@ -4,7 +4,7 @@ import (
 	"nbodygo/cmd/globals"
 )
 
-// ModBodyResult enum defines the result of a call to ModBody
+// ModBodyResult enum defines the result of a call to the ModBody callback
 type ModBodyResult int
 const (
 	NoMatch ModBodyResult = 0
@@ -18,7 +18,8 @@ func (mbr ModBodyResult) String() string {
 }
 
 //
-// Defines a struct how the gRPC service wants it. Simplifies type translation
+// Defines a struct how the gRPC service sees a body. Simplifies type translation
+// todo conform grpc types to those used in the sim
 //
 type BodyRaw struct {
 	Id                int64
@@ -46,7 +47,7 @@ type BodyRaw struct {
 // to modify the simulation while it is running
 //
 type GrpcSimCallbacks struct {
-	SetResultQueueSize func(int)
+	SetResultQueueSize func(int) bool
 	ResultQueueSize func() int
 	SetSmoothing func(float64)
 	Smoothing func() float64
@@ -58,6 +59,6 @@ type GrpcSimCallbacks struct {
 	BodyCount func() int
 	AddBody func(float64, float64, float64, float64, float64, float64, float64, float64,
 		bool, globals.CollisionBehavior,globals.BodyColor, float64, float64, bool, string, string, bool) int
-	ModBody func() ModBodyResult
+	ModBody func(int, string, string, []string) ModBodyResult
 	GetBody func(int, string) BodyRaw
 }

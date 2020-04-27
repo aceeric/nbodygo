@@ -28,7 +28,7 @@ type G3nApp struct {
 	app   *app.Application
 	scene *core.Node
 	// result queue holder provides lists of renderable objects each frame
-	holder runner.ResultQueueHolder
+	holder *runner.ResultQueueHolder
 	// fly camera
 	flyCam *flycam.FlyCam
 	// G3N meshes in the scene graph - synced to the renderable objects obtained from 'holder'
@@ -50,7 +50,7 @@ var g3nApp G3nApp
 //   done          - channel to signal caller to indicate that the window was closed by virtue of
 //                   the user pressing ESC
 //
-func StartG3nApp(initialCam *math32.Vector3, width, height int, holder runner.ResultQueueHolder, done chan<- bool) {
+func StartG3nApp(initialCam *math32.Vector3, width, height int, holder *runner.ResultQueueHolder, done chan<- bool) {
 	if g3nApp.app != nil {
 		panic("Cannot call StartG3nApp twice")
 	}
@@ -109,12 +109,7 @@ func updateSim() {
 		if !bri.Exists() {
 			// body no longer exists so remove from the scene graph
 			if mesh, ok := g3nApp.meshes[bri.Id()]; ok {
-				g3nApp.scene.Remove(mesh)
-				delete(g3nApp.meshes, bri.Id())
-				if l, ok := g3nApp.lightSources[bri.Id()]; ok {
-					g3nApp.scene.Remove(l)
-					delete(g3nApp.lightSources, bri.Id())
-				}
+				removeMeshFromSceneGraph(mesh, bri.Id())
 			}
 		} else {
 			var mesh *graphic.Mesh
@@ -122,15 +117,21 @@ func updateSim() {
 			if !ok {
 				// add G3N representation of the body to our local list
 				mesh = addBody(bri)
-			}
-			// TODO how to interrogate and change radius?
-
-			// allow a body color to change if it is not a sun
-			if bri.BodyColor() != globals.Random && !bri.IsSun() {
-				mat := mesh.GetMaterial(0).(*material.Standard)
-				color := mat.AmbientColor()
-				if !color.Equals(xlatColor(bri.BodyColor())) {
-					mat.SetColor(xlatColor(bri.BodyColor()))
+			} else {
+				// allow a body radius to change. Note - the JMonkey API supports the ability to
+				// change a sphere's radius on the fly. Didn't see an easy way to do this with G3N
+				// so this is a work-around: just remove and re-add the body
+				if float32(bri.Radius()) != mesh.GetGeometry().BoundingBox().Max.X {
+					removeMeshFromSceneGraph(mesh, bri.Id())
+					mesh = addBody(bri)
+				}
+				// allow a body color to change if it is not a sun
+				if bri.BodyColor() != globals.Random && !bri.IsSun() {
+					mat := mesh.GetMaterial(0).(*material.Standard)
+					color := mat.AmbientColor()
+					if !color.Equals(xlatColor(bri.BodyColor())) {
+						mat.SetColor(xlatColor(bri.BodyColor()))
+					}
 				}
 			}
 			// update this body's position and if the body has a light source, also update that
@@ -141,6 +142,19 @@ func updateSim() {
 			}
 			renderedBodies++
 		}
+	}
+}
+
+//
+// removes the passed mesh from the scene graph and if a light source is associated with the
+// mesh (based on id) remove that as well
+//
+func removeMeshFromSceneGraph(mesh *graphic.Mesh, id int) {
+	g3nApp.scene.Remove(mesh)
+	delete(g3nApp.meshes, id)
+	if l, ok := g3nApp.lightSources[id]; ok {
+		g3nApp.scene.Remove(l)
+		delete(g3nApp.lightSources, id)
 	}
 }
 

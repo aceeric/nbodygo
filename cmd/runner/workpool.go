@@ -3,25 +3,45 @@ package runner
 import (
 	"fmt"
 	"nbodygo/cmd/body"
+	"runtime"
 	"sync"
 	"time"
 )
+
+/*
+#define _GNU_SOURCE
+#include <sched.h>
+#include <pthread.h>
+void lock_thread(int cpuid) {
+        pthread_t tid;
+        cpu_set_t cpuset;
+        tid = pthread_self();
+        CPU_ZERO(&cpuset);
+        CPU_SET(cpuid, &cpuset);
+    pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
+}
+*/
+import "C"
 
 //
 // Defines the worker pool state
 //
 type WorkPool struct {
 	// dynamically updated by the 'submit' function to round-robin work into the pool
-	wrkIdx      uint
+	wrkIdx uint
 	// workers
-	workers     []*Worker
+	workers []*Worker
 	// wait group - waits for all submitted work to complete
-	wg          sync.WaitGroup
+	wg sync.WaitGroup
 	// metrics
 	submissions int64
 	millis      int64
 	// the simulation body collection
 	sbc body.SimBodyCollection
+	// how to resize the pool
+	resizeCh chan int
+	// tracks the ID of the most recently created worker
+	maxId    int
 }
 
 //
@@ -29,15 +49,18 @@ type WorkPool struct {
 //
 type Worker struct {
 	// unique ID per worker
-	id          uint
+	id int
 	// how the worker pool shuts down workers
-	stop        chan bool
+	stop chan bool
 	// how the worker receives work
-	compute     chan body.SimBody
+	compute chan body.SimBody
+	// how the worker receives work
+	computeSlice chan []body.SimBody
 	// metrics
 	invocations int
 	millis      int64
 }
+
 //
 // A worker goroutine that is started by the work pool. Waits for a body on its 'compute' channel and when
 // it gets a body, calls the 'Compute' method on the the body. Is stopped using the 'stop'
@@ -50,15 +73,17 @@ type Worker struct {
 //
 func worker(w *Worker, wg *sync.WaitGroup, sbc body.SimBodyCollection) {
 	millis := int64(0)
+	//runtime.LockOSThread()
+	//C.lock_thread(C.int(w.id))
 	invocations := 0
 	for {
 		select {
 		case <-w.stop:
-			// note that this may leave the go routine with items still enqueued on the w.compute channel
-			// so this shutdown leaves unfinished work
+			// note that this may leave the go routine with items still enqueued on the compute channel
+			// so this shutdown can leave unfinished work
 			w.invocations = invocations
 			w.millis = millis
-			w.stop<- true // acknowledge stop
+			w.stop <- true // acknowledge stop
 			return
 		case c := <-w.compute:
 			start := time.Now()
@@ -66,8 +91,17 @@ func worker(w *Worker, wg *sync.WaitGroup, sbc body.SimBodyCollection) {
 			invocations++
 			wg.Done()
 			millis += time.Now().Sub(start).Milliseconds()
+		case slice := <-w.computeSlice:
+			start := time.Now()
+			for _, b := range slice {
+				b.Compute(sbc)
+			}
+			invocations++
+			wg.Done()
+			millis += time.Now().Sub(start).Milliseconds()
 		default:
 		}
+		runtime.Gosched()
 	}
 }
 
@@ -82,26 +116,53 @@ func worker(w *Worker, wg *sync.WaitGroup, sbc body.SimBodyCollection) {
 //   pointer to created pool
 //
 func NewWorkPool(goroutines int, sbc body.SimBodyCollection) *WorkPool {
-	wp := WorkPool{
+	wp := &WorkPool{
 		wrkIdx:      0,
 		workers:     []*Worker{},
 		wg:          sync.WaitGroup{},
 		submissions: 0,
 		millis:      0,
 		sbc:         sbc,
+		resizeCh:    make(chan int, 1),
+		maxId:       -1,
 	}
-	for i := 0; i < goroutines; i++ {
+	//for i := 0; i < goroutines; i++ {
+	//	w := Worker{
+	//		id:           int(i),
+	//		stop:         make(chan bool),
+	//		compute:      make(chan body.SimBody, 5), // TODO REVISIT COUNT
+	//		computeSlice: make(chan []body.SimBody, 5),
+	//		invocations:  0,
+	//		millis:       0,
+	//	}
+	//	wp.workers = append(wp.workers, &w)
+	//	go worker(&w, &wp.wg, sbc)
+	//	wp.maxId = i
+	//}
+	wp.createWorkers(goroutines)
+	return wp
+}
+
+//
+// Creates workers until the number of workers in the pool equals the passed value
+//
+// args:
+//   goroutines - the number of go routines desired in the pool
+//
+func (wp *WorkPool) createWorkers(goroutines int) {
+	for ; len(wp.workers) < goroutines; {
+		wp.maxId++
 		w := Worker{
-			id:          uint(i),
-			stop:        make(chan bool),
-			compute:     make(chan body.SimBody, 5),
-			invocations: 0,
-			millis:      0,
+			id:           wp.maxId,
+			stop:         make(chan bool),
+			compute:      make(chan body.SimBody, 5), // TODO REVISIT COUNT
+			computeSlice: make(chan []body.SimBody, 5),
+			invocations:  0,
+			millis:       0,
 		}
 		wp.workers = append(wp.workers, &w)
-		go worker(&w, &wp.wg, sbc)
+		go worker(&w, &wp.wg, wp.sbc)
 	}
-	return &wp
 }
 
 //
@@ -113,6 +174,14 @@ func (wp *WorkPool) ShutDownWorkPool() {
 		w.stop <- true
 		<-w.stop
 	}
+}
+
+//
+// signals the internal channel with a new pool size. The 'submit' functions monitor
+// the channel and implement the resize
+//
+func (wp *WorkPool) SetPoolSize(workers int) {
+	wp.resizeCh <- workers
 }
 
 //
@@ -131,12 +200,51 @@ func (wp *WorkPool) PrintStats() {
 // Submits a body to the pool for computation
 //
 func (wp *WorkPool) submit(c body.SimBody) {
+	wp.chkResize()
 	start := time.Now()
 	wp.wg.Add(1)
 	wp.workers[wp.wrkIdx%uint(len(wp.workers))].compute <- c
 	wp.submissions++
 	wp.wrkIdx++
 	wp.millis += time.Now().Sub(start).Milliseconds()
+}
+
+//
+// Submits a slice of the body array to the pool for computation - slightly faster
+// than the other way
+//
+func (wp *WorkPool) submitSlice(bodySlice []body.SimBody) {
+	wp.chkResize()
+	start := time.Now()
+	wp.wg.Add(1)
+	wp.workers[wp.wrkIdx%uint(len(wp.workers))].computeSlice <- bodySlice
+	wp.submissions++
+	wp.wrkIdx++
+	wp.millis += time.Now().Sub(start).Milliseconds()
+}
+
+//
+// Checks the internal work pool channel that is used to signal a resize request
+// and handles the request
+//
+func (wp *WorkPool) chkResize() {
+	select {
+	case goroutines := <-wp.resizeCh:
+		switch {
+		case goroutines < len(wp.workers):
+			for i := goroutines; i < len(wp.workers); i++ {
+				wp.workers[i].stop <- true
+				<-wp.workers[i].stop
+			}
+			wp.workers = wp.workers[0:goroutines]
+			wp.wrkIdx = 0
+		case goroutines > len(wp.workers):
+			wp.createWorkers(goroutines)
+			wp.wrkIdx = 0
+		}
+	default:
+		return
+	}
 }
 
 //

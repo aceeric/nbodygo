@@ -64,7 +64,7 @@ func FromCsv(csvPath string, bodyCount int, defaultCollisionBehavior globals.Col
 		if err != nil {
 			log.Fatal(err)
 		}
-		// using a function allows inline panic recovery so we can just skip records with
+		// using a function to parse allows inline panic recovery so we can just skip records with
 		// parse errors
 		func() {
 			defer func() {

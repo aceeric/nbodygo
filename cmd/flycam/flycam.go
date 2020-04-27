@@ -104,8 +104,9 @@ func engage() {
 	if !flyCam.f12Bound {
 		flyCam.f12Bound = true
 		glfwWindow.SubscribeID(window.OnKeyUp, EngageDisengageEvId, handleF12)
+	} else {
+		flyCam.lastMouseX, flyCam.lastMouseY = NoLastMousePos, NoLastMousePos
 	}
-	//return todo doesn't work - ability to start with controls disengaged
 	glfwWindow.SubscribeID(window.OnKeyUp, DefaultEvId, handleEsc)
 	glfwWindow.SubscribeID(window.OnKeyRepeat, DefaultEvId, handleKey)
 	glfwWindow.SubscribeID(window.OnKeyDown, DefaultEvId, handleKey)

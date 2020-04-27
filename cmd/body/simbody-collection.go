@@ -2,6 +2,7 @@ package body
 
 import (
 	"container/list"
+	"nbodygo/cmd/grpcsimcb"
 	"runtime"
 	"sync"
 )
@@ -25,7 +26,13 @@ type simBodyCollection struct {
 	}
 	sendBodyCh chan SimBody
 	// diagnostic/debugging aid
-	cycle int
+	cycle     int
+	modBodyCh chan struct {
+		id          int
+		name, class string
+		mods        []string
+	}
+	modBodyResultCh chan grpcsimcb.ModBodyResult
 }
 
 //
@@ -46,12 +53,23 @@ func NewSimBodyCollection(bodies []SimBody) SimBodyCollection {
 			name string
 		}, 10),
 		sendBodyCh: make(chan SimBody, 1),
+		modBodyCh: make(chan
+		struct {
+			id          int
+			name, class string
+			mods        []string
+		}, 10),
+		modBodyResultCh: make(chan grpcsimcb.ModBodyResult, 1),
 	}
 	for i, size := 0, len(bodies); i < size; i++ {
 		c.arr[i] = bodies[i]
 	}
 	go c.handleEvents()
 	return &c
+}
+
+func (sbc *simBodyCollection) GetArray() []SimBody {
+	return sbc.arr
 }
 
 //
@@ -105,6 +123,10 @@ func (sbc *simBodyCollection) GetBody(id int, name string) func() SimBody {
 	}
 }
 
+//
+// if there is a 'get body' message on the 'getBodyCh' channel, then searches the body array for the
+// body and if found, calls doSendBody to send the body on the 'sendBodyCh' channel
+//
 func (sbc *simBodyCollection) HandleGetBody() {
 	select {
 	default:
@@ -121,6 +143,10 @@ func (sbc *simBodyCollection) HandleGetBody() {
 	}
 }
 
+//
+// Clones the passed body and sends it to the 'sendBodyCh' channel. That channel is monitored
+// by the function returned by the 'GetBody' function
+//
 func (sbc *simBodyCollection) doSendBody(b SimBody) {
 	if len(sbc.sendBodyCh) < cap(sbc.sendBodyCh) { // if too many requests just discard them
 		if b != nil {
@@ -130,6 +156,51 @@ func (sbc *simBodyCollection) doSendBody(b SimBody) {
 			sbc.sendBodyCh <- &clone
 		} else {
 			sbc.sendBodyCh <- nil
+		}
+	}
+}
+
+//
+// Enqueues a request to modify the properties of a body - or bodies - in the collection. Uses the same
+// pattern as GetBody / HandleGetBody / doSendBody except since all it has to return is a result code, it
+// doesn't need a doModBody
+//
+func (sbc *simBodyCollection) ModBody(id int, name, class string, mods []string) func() grpcsimcb.ModBodyResult {
+	sbc.modBodyCh <- struct {
+		id   int
+		name, class string
+		mods []string
+	}{id: id, name: name, class: class, mods: mods}
+	return func() grpcsimcb.ModBodyResult {
+		return <-sbc.modBodyResultCh
+	}
+}
+
+//
+// if there is a 'mod body' message on the 'modBodyCh' channel, then searches the body array for all matching
+// bodies and if found, calls ApplyMods on the body, then sends the result on the 'modBodyResultCh' channel
+//
+func (sbc *simBodyCollection) HandleModBody() {
+	select {
+	default:
+	case mod := <-sbc.modBodyCh:
+		var found, modified = 0, 0
+		for i, size := 0, len(sbc.arr); i < size; i++ {
+			b := sbc.arr[i].(*Body)
+			if mod.class != "" && mod.class == b.class ||
+				mod.name != "" && mod.name == b.name ||
+				mod.id == b.id {
+				found++
+				if b.ApplyMods(mod.mods) {
+					modified++
+				}
+			}
+		}
+		switch {
+		case found == 0: sbc.modBodyResultCh <- grpcsimcb.NoMatch
+		case modified == 0: sbc.modBodyResultCh <- grpcsimcb.ModNone
+		case found == modified: sbc.modBodyResultCh <- grpcsimcb.ModAll
+		default: sbc.modBodyResultCh <- grpcsimcb.ModSome
 		}
 	}
 }

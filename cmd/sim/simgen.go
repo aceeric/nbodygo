@@ -332,12 +332,11 @@ func (g generator) Sim5(bodyCount int, collisionBehavior globals.CollisionBehavi
 		}
 	}
 	bodies := createSunAndAddToList([]body.SimBody{}, body.NextId(), 100000, 100000, 001000, 1, 500, 4E5)
-	theSun := bodies[0]
 
 	// planet
-	p := body.NewBody(body.NextId(), 0, 0, 0, 12, 12, 12, 9E30, 145, globals.Elastic,
+	planet := body.NewBody(body.NextId(), 0, 0, 0, 12, 12, 12, 9E30, 145, globals.Elastic,
 		globals.Red, 0, 0, false, "", "", false)
-	bodies = append(bodies, &p)
+	bodies = append(bodies, &planet)
 
 	// moons
 	m1 := body.NewBody(body.NextId(), 50, 0, -420, -980000000, 12, -500000000, 9E20, 35, globals.Subsume,
@@ -360,7 +359,7 @@ func (g generator) Sim5(bodyCount int, collisionBehavior globals.CollisionBehavi
 	simWorker := func(sbc body.SimBodyCollection) {
 		for {
 			if sbc.Count() > 6 {
-				theSun.SetCollisionBehavior(globals.Subsume) // TODO THIS NEEDS TO BE  ENQUEUED AS AN EVENT ALSO IS SUBSUME WORKING?
+				sbc.ModBody(planet.Id(), "", "",  []string{"collision=subsume"})
 				return
 			}
 			time.Sleep(time.Millisecond * 1000)
@@ -370,9 +369,7 @@ func (g generator) Sim5(bodyCount int, collisionBehavior globals.CollisionBehavi
 }
 
 //
-// This simulator demonstrates the side-effect how collision resolution is implemented without requiring the use of
-// a mutex: in the case where body A is collided simultaneously by bodies B and C, the second one will "win"
-// rather than A's velocity being the result of both B and C
+// Validate collision resolution using the deferred approach
 //
 func (g generator) SimTest(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
 	simArgs string) ([]body.SimBody, SimWorker) {

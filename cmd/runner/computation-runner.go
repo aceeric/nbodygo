@@ -33,7 +33,7 @@ type ComputationRunner struct {
 	timeScaling   float64
 	timeScaleChan chan float64
 	// holds computed results for the render engine
-	resultQueueHolder ResultQueueHolder
+	resultQueueHolder *ResultQueueHolder
 	// coefficient of restitution for elastic collision
 	R float64
 	RChan chan float64
@@ -63,14 +63,15 @@ func (r *ComputationRunner) PrintStats() {
 //   workerCnt         Number of workers in the pool
 //   timeScaling       Multiplier for force and velocity calc - determines sim "speed"
 //   resultQueueHolder Holds computed results
+//   sbc               Collection of bodies in the simulation
 //
-func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder ResultQueueHolder,
-	cc body.SimBodyCollection) *ComputationRunner { // TODO MAKE THIS AN INTERFACE
+func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder *ResultQueueHolder,
+	sbc body.SimBodyCollection) *ComputationRunner { // TODO MAKE THIS AN INTERFACE
 	r := ComputationRunner{
 		stop:              make(chan bool),
 		workerCnt:         workerCnt,
-		wp:                NewWorkPool(workerCnt, cc),
-		sbc:               cc,
+		wp:                NewWorkPool(workerCnt, sbc),
+		sbc:               sbc,
 		timeScaling:       timeScaling,
 		timeScaleChan:     make(chan float64, 1),
 		resultQueueHolder: resultQueueHolder,
@@ -109,9 +110,13 @@ func (r *ComputationRunner) Stop() {
 	r.wp.ShutDownWorkPool()
 }
 
-// TODO this doesn't do anything yet - has to be integrated into the work pool
+//
+// calls into the work pool contained in the struct to change the pool size. This is enqueued
+// and handled by the pool the next time work is submitted to the pool
+//
 func (r *ComputationRunner) SetWorkers(workerCnt int) {
 	r.workerCnt = workerCnt
+	r.wp.SetPoolSize(workerCnt)
 }
 
 //
@@ -155,8 +160,8 @@ func (r *ComputationRunner) SetCoefficientOfRestitution(R float64) {
 }
 
 //
-// if a change the the time scale has been enqueued in the channel, use
-// it to update the time scale
+// if a change the the coefficient of restitution has been enqueued in the channel, use
+// it to update the coefficient of restitution
 //
 func (r *ComputationRunner) updateCoefficientOfRestitution() {
 	select {
@@ -167,15 +172,14 @@ func (r *ComputationRunner) updateCoefficientOfRestitution() {
 }
 
 //
-// sets the coefficient of restitution in the runner to the passed value
+// sends a message to delete the passed number of bodies from the sim
 //
 func (r *ComputationRunner) RemoveBodies(deletes int) {
 	r.delChan <- deletes
 }
 
 //
-// if a change the the time scale has been enqueued in the channel, use
-// it to update the time scale
+// handles a request to remove bodies from the sim
 //
 func (r *ComputationRunner) processDeletes() {
 	select {
@@ -236,10 +240,10 @@ func (r *ComputationRunner) run() {
 					r.running = false
 				}
 			}
-			runtime.Gosched()
 		case <-r.stop:
 			r.running = false
 		}
+		runtime.Gosched()
 	}
 	r.stopTime = time.Now()
 	r.stop <- true
@@ -272,25 +276,57 @@ func (r *ComputationRunner) runOneComputation() {
 	r.updateCoefficientOfRestitution()
 	r.processDeletes()
 	r.sbc.HandleGetBody()
+	r.sbc.HandleModBody()
 	rq, ok := r.resultQueueHolder.NewResultQueue()
 	if !ok {
 		return
 	}
 	start := time.Now()
-	bodies := 0
-	r.sbc.IterateOnce(func(b body.SimBody) {
-		if b.Exists() {
-			r.wp.submit(b)
-			r.submits++
-			bodies++
+	submits := 0
+
+	// slightly better performance this way - give each worker a slice to work on
+	if true {
+		workers := len(r.wp.workers)
+		arr := r.sbc.GetArray()
+		max := len(arr)
+		size := max / workers
+		if max < 100 {
+			// for small simulations just use one worker
+			size = len(arr)
 		}
-	})
-	if bodies != 0 {
-		r.submitMillis += time.Now().Sub(start).Milliseconds()
-		start = time.Now()
-		r.wp.wait()
-		r.waits++
-		r.waitMillis += time.Now().Sub(start).Milliseconds()
+		for offset := 0; offset < max; offset += size {
+			end := offset + size
+			if offset+size > max {
+				end = max
+			}
+			r.wp.submitSlice(arr[offset:end])
+			r.submits++
+			submits++
+		}
+		if submits != 0 {
+			r.submitMillis += time.Now().Sub(start).Milliseconds()
+			start = time.Now()
+			r.wp.wait()
+			r.waits++
+			r.waitMillis += time.Now().Sub(start).Milliseconds()
+		}
+	} else {
+		// this approach submits to the work pool one body at a time, which
+		// is how the Java app does it
+		r.sbc.IterateOnce(func(b body.SimBody) {
+			if b.Exists() {
+				r.wp.submit(b)
+				r.submits++
+				submits++
+			}
+		})
+		if submits != 0 {
+			r.submitMillis += time.Now().Sub(start).Milliseconds()
+			start = time.Now()
+			r.wp.wait()
+			r.waits++
+			r.waitMillis += time.Now().Sub(start).Milliseconds()
+		}
 	}
 	r.sbc.ProcessMods()
 	r.sbc.IterateOnce(func(b body.SimBody) {
