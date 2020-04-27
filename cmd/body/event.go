@@ -1,6 +1,13 @@
 package body
 
 //
+// Events are enqueued in the body collection as they occur during each compute cycle. This allows bodies
+// to modify each other (e.g. collide and exchange velocity) in a thread safe way. The enqueued events are
+// processed by the computation once each cycle. This avoids synchronization between bodies which would not
+// be feasible given the number of concurrent reads.
+//
+
+//
 // Enum that defines the events that are handled
 //
 type EventType int
@@ -61,7 +68,7 @@ func (ev Event) GetAdd() *Body {
 }
 
 //
-// Creates an even representing a collision between two bodies
+// Creates an event representing a collision between two bodies
 //
 func NewCollision(b1 *Body, b2 *Body) Event {
 	return Event{
@@ -74,7 +81,7 @@ func NewCollision(b1 *Body, b2 *Body) Event {
 }
 
 //
-// Creates an even representing one body subsuming another body
+// Creates an event representing one body subsuming another body
 //
 func NewSubsume(b1 *Body, b2 *Body) Event {
 	return Event{
@@ -87,7 +94,7 @@ func NewSubsume(b1 *Body, b2 *Body) Event {
 }
 
 //
-// Creates an even representing a body being added into a running simulation
+// Creates an event representing a body being added into a running simulation
 //
 func NewAdd(b *Body) Event {
 	return Event{

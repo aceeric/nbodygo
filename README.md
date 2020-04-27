@@ -16,9 +16,6 @@ go build -o $(pwd) ./...
 
 TODO
 
-> grpc data type consistency
-> get rid of SimBody and export all fields from Body
-- consider removing interfaces: SimBody, Renderable, SimBodyCollection?
 - pointer vs copy consistency
 - gRPC client
 - g3n directory structure (pkg?)
@@ -27,11 +24,11 @@ TODO
 - enums
 - logging
 - tests
-- make the code idiomatic
+- idiomatic
 - todos
 - handle CTRL-C? https://golangcode.com/handle-ctrl-c-exit-in-terminal/
-- --no-render takes millis runtime ?
-- etc..
+- build documentation (esp. steps for G3N)
+- readme cleanup
 
 grpc
 https://grpc.io/docs/quickstart/go/

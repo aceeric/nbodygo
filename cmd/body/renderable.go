@@ -19,7 +19,7 @@ type Renderable struct {
 //
 // Creates a 'Renderable' from the passed 'Body'
 //
-func NewFromRenderable(b *Body) *Renderable {
+func NewRenderable(b *Body) *Renderable {
 	if !b.Exists {
 		return &Renderable{
 			Id:     b.Id,
