@@ -16,7 +16,8 @@ go build -o $(pwd) ./...
 
 TODO
 
-- get rid of SimBody and export all fields from Body
+> grpc data type consistency
+> get rid of SimBody and export all fields from Body
 - consider removing interfaces: SimBody, Renderable, SimBodyCollection?
 - pointer vs copy consistency
 - gRPC client
@@ -43,7 +44,7 @@ $ ls -l $(go env GOPATH)/bin/protoc-gen-go
 $ export PATH="$PATH:$(go env GOPATH)/bin"
 $ pwd
 /home/eace/go/nbodygo
-$ protoc --proto_path=cmd/grpc/ cmd/grpc/nbodyservice.proto --go_out=plugins=grpc:cmd/grpc
+$ protoc --proto_path=cmd/nbodygrpc/ cmd/nbodygrpc/nbodyservice.proto --go_out=plugins=grpc:cmd/nbodygrpc
 ```
 
 

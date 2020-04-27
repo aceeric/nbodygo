@@ -69,13 +69,13 @@ func main() {
 	}
 	// initialize a list of bodies representing the simulation, and optionally a worker function that
 	// will modify the body collection concurrently while the sim is running
-	var bodies []body.SimBody
+	var bodies []*body.Body
 	var simWorker sim.SimWorker
 
 	if len(vars.csvPath) > 0 {
 		bodies = sim.FromCsv(vars.csvPath, vars.bodyCount, vars.defaultCollisionBehavior, vars.defaultBodyColor)
 	} else if strings.EqualFold(vars.simName, emptySimName) {
-		bodies = []body.SimBody{}
+		bodies = []*body.Body{}
 	} else {
 		bodies, simWorker = sim.Generate(vars.simName, vars.bodyCount, vars.defaultCollisionBehavior,
 			vars.defaultBodyColor, vars.simArgs)

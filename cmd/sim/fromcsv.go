@@ -44,9 +44,9 @@ import (
 // returns: the parsed list of bodies
 //
 func FromCsv(csvPath string, bodyCount int, defaultCollisionBehavior globals.CollisionBehavior,
-	defaultBodyColor globals.BodyColor) []body.SimBody {
+	defaultBodyColor globals.BodyColor) []*body.Body {
 
-	var bodies []body.SimBody
+	var bodies []*body.Body
 	file, err := os.Open(csvPath)
 	defer file.Close()
 	if err != nil {
@@ -105,7 +105,7 @@ func FromCsv(csvPath string, bodyCount int, defaultCollisionBehavior globals.Col
 			if isSun {
 				b.SetSun(100) // todo support in csv?
 			}
-			bodies = append(bodies, &b)
+			bodies = append(bodies, b)
 			lines++
 		}()
 	}

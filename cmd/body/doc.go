@@ -2,9 +2,9 @@
 TODO docs
 
 
-SimBodyCollection
+BodyCollection
 
-The SimBodyCollection provides a basic wrapper around the body collection for the simulation. This project
+The BodyCollection provides a basic wrapper around the body collection for the simulation. This project
 is a port from Java - and the Java version used a ConcurrentLinkedQueue - which is a concurrent
 non-blocking collection with great performance.
 

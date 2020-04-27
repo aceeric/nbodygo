@@ -10,7 +10,7 @@ import (
 //
 // See grpcsimcb package
 //
-func newGrpcSimCb(sbc body.SimBodyCollection, crunner *runner.ComputationRunner,
+func newGrpcSimCb(bc *body.BodyCollection, crunner *runner.ComputationRunner,
 	rqh *runner.ResultQueueHolder) grpcsimcb.GrpcSimCallbacks {
 	return grpcsimcb.GrpcSimCallbacks{
 		SetResultQueueSize: func(maxQueues int) bool {
@@ -42,7 +42,7 @@ func newGrpcSimCb(sbc body.SimBodyCollection, crunner *runner.ComputationRunner,
 			crunner.RemoveBodies(count)
 		},
 		BodyCount: func() int {
-			return sbc.Count()
+			return bc.Count()
 		},
 		AddBody: func(mass, x, y, z, vx, vy, vz, radius float64,
 			isSun bool, behavior globals.CollisionBehavior, bodyColor globals.BodyColor,
@@ -55,38 +55,14 @@ func newGrpcSimCb(sbc body.SimBodyCollection, crunner *runner.ComputationRunner,
 			if isSun {
 				b.SetSun(100) // todo support passing intensity
 			}
-			sbc.Enqueue(body.NewAdd(&b))
+			bc.Enqueue(body.NewAdd(b))
 			return id
 		},
 		ModBody: func(id int, name, class string, mods []string) grpcsimcb.ModBodyResult {
-			return sbc.ModBody(id, name, class, mods)()
+			return bc.ModBody(id, name, class, mods)()
 		},
-		GetBody: func(id int, name string) grpcsimcb.BodyRaw {
-			b := sbc.GetBody(id, name)()
-			if b == nil {
-				return grpcsimcb.BodyRaw{Id:-1}
-			}
-			bb := b.(*body.Body).RawBodyFromSimBody() // TODO SO BAD FIX FIX FIX!!!
-			return grpcsimcb.BodyRaw{
-				Id:                int64(bb.Id),
-				X:                 float32(bb.X),
-				Y:                 float32(bb.Y),
-				Z:                 float32(bb.Z),
-				Vx:                float32(bb.Vx),
-				Vy:                float32(bb.Vy),
-				Vz:                float32(bb.Vz),
-				Mass:              float32(bb.Mass),
-				Radius:            float32(bb.Radius),
-				IsSun:             bb.IsSun,
-				CollisionBehavior: bb.CollisionBehavior,
-				BodyColor:         bb.BodyColor,
-				FragFactor:        float32(bb.FragFactor),
-				FragStep:          float32(bb.FragmentationStep),
-				WithTelemetry:     bb.WithTelemetry,
-				Name:              bb.Name,
-				Class:             bb.Class,
-				Pinned:            bb.Pinned,
-			}
+		GetBody: func(id int, name string) interface{} {
+			return bc.GetBody(id, name)
 		},
 	}
 }

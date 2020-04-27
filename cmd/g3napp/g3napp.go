@@ -2,9 +2,9 @@ package g3napp
 
 import (
 	"math/rand"
+	"nbodygo/cmd/body"
 	"nbodygo/cmd/flycam"
 	"nbodygo/cmd/globals"
-	"nbodygo/cmd/renderable"
 	"nbodygo/cmd/runner"
 	"nbodygo/internal/pkg/app"
 	"nbodygo/internal/pkg/core"
@@ -106,14 +106,14 @@ func updateSim() {
 	renderedBodies := 0
 	lightSources := 0
 	for _, bri := range rq.Queue() {
-		if !bri.Exists() {
+		if !bri.Exists {
 			// body no longer exists so remove from the scene graph
-			if mesh, ok := g3nApp.meshes[bri.Id()]; ok {
-				removeMeshFromSceneGraph(mesh, bri.Id())
+			if mesh, ok := g3nApp.meshes[bri.Id]; ok {
+				removeMeshFromSceneGraph(mesh, bri.Id)
 			}
 		} else {
 			var mesh *graphic.Mesh
-			mesh, ok := g3nApp.meshes[bri.Id()]
+			mesh, ok := g3nApp.meshes[bri.Id]
 			if !ok {
 				// add G3N representation of the body to our local list
 				mesh = addBody(bri)
@@ -121,23 +121,23 @@ func updateSim() {
 				// allow a body radius to change. Note - the JMonkey API supports the ability to
 				// change a sphere's radius on the fly. Didn't see an easy way to do this with G3N
 				// so this is a work-around: just remove and re-add the body
-				if float32(bri.Radius()) != mesh.GetGeometry().BoundingBox().Max.X {
-					removeMeshFromSceneGraph(mesh, bri.Id())
+				if float32(bri.Radius) != mesh.GetGeometry().BoundingBox().Max.X {
+					removeMeshFromSceneGraph(mesh, bri.Id)
 					mesh = addBody(bri)
 				}
 				// allow a body color to change if it is not a sun
-				if bri.BodyColor() != globals.Random && !bri.IsSun() {
+				if bri.BodyColor != globals.Random && !bri.IsSun {
 					mat := mesh.GetMaterial(0).(*material.Standard)
 					color := mat.AmbientColor()
-					if !color.Equals(xlatColor(bri.BodyColor())) {
-						mat.SetColor(xlatColor(bri.BodyColor()))
+					if !color.Equals(xlatColor(bri.BodyColor)) {
+						mat.SetColor(xlatColor(bri.BodyColor))
 					}
 				}
 			}
 			// update this body's position and if the body has a light source, also update that
-			mesh.SetPosition(bri.X(), bri.Y(), bri.Z())
-			if pl, ok := g3nApp.lightSources[bri.Id()]; ok {
-				pl.SetPosition(bri.X(), bri.Y(), bri.Z())
+			mesh.SetPosition(bri.X, bri.Y, bri.Z)
+			if pl, ok := g3nApp.lightSources[bri.Id]; ok {
+				pl.SetPosition(bri.X, bri.Y, bri.Z)
 				lightSources++
 			}
 			renderedBodies++
@@ -204,26 +204,26 @@ func xlatColor(color globals.BodyColor) *math32.Color {
 // Converts the passed 'Renderable' into a G3N mesh, adds the mesh to the instance map of meshes, and also
 // adds the mesh to the G3N scene graph
 //
-func addBody(bri renderable.Renderable) *graphic.Mesh {
+func addBody(bri *body.Renderable) *graphic.Mesh {
 	var mesh *graphic.Mesh
-	if bri.IsSun() {
-		geom := geometry.NewSphere(bri.Radius(), 20, 20)
+	if bri.IsSun {
+		geom := geometry.NewSphere(bri.Radius, 20, 20)
 		mat := material.NewStandard(xlatColor(globals.White))
 		mat.SetShininess(1)
 		mat.SetEmissiveColor(xlatColor(globals.White))
 		mesh = graphic.NewMesh(geom, mat)
-		pl := light.NewPoint(xlatColor(globals.White), bri.Intensity())
+		pl := light.NewPoint(xlatColor(globals.White), bri.Intensity)
 		pl.SetLinearDecay(.00001)
 		pl.SetQuadraticDecay(.00001)
-		pl.SetPosition(bri.X(), bri.Y(), bri.Z())
+		pl.SetPosition(bri.X, bri.Y, bri.Z)
 		g3nApp.scene.Add(pl)
-		g3nApp.lightSources[bri.Id()] = pl
+		g3nApp.lightSources[bri.Id] = pl
 	} else {
-		geom := geometry.NewSphere(bri.Radius(), 20, 20)
-		mat := material.NewStandard(xlatColor(bri.BodyColor()))
+		geom := geometry.NewSphere(bri.Radius, 20, 20)
+		mat := material.NewStandard(xlatColor(bri.BodyColor))
 		mesh = graphic.NewMesh(geom, mat)
 	}
 	g3nApp.scene.Add(mesh)
-	g3nApp.meshes[bri.Id()] = mesh
+	g3nApp.meshes[bri.Id] = mesh
 	return mesh
 }

@@ -10,9 +10,9 @@ import (
 
 func TestWpResize(t *testing.T) {
 	fmt.Printf("start goroutines: %v\n", runtime.NumGoroutine())
-	sbc := body.NewSimBodyCollection([]body.SimBody{})
-	fmt.Printf("after sbc goroutines: %v\n", runtime.NumGoroutine())
-	wp := NewWorkPool(5, sbc)
+	bc := body.NewSimBodyCollection([]*body.Body{})
+	fmt.Printf("after bc goroutines: %v\n", runtime.NumGoroutine())
+	wp := NewWorkPool(5, bc)
 	fmt.Printf("wp=5 goroutines: %v\n", runtime.NumGoroutine())
 	b := body.Body{}
 	wp.submit(&b)
@@ -23,7 +23,7 @@ func TestWpResize(t *testing.T) {
 	wp.submit(&b)
 	time.Sleep(time.Second)
 	fmt.Printf("wp=3 goroutines: %v\n", runtime.NumGoroutine())
-	sbc = nil
+	bc = nil
 	time.Sleep(time.Second)
-	fmt.Printf("sbc=nil goroutines: %v\n", runtime.NumGoroutine())
+	fmt.Printf("bc=nil goroutines: %v\n", runtime.NumGoroutine())
 }

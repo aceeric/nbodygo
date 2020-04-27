@@ -18,31 +18,6 @@ func (mbr ModBodyResult) String() string {
 }
 
 //
-// Defines a struct how the gRPC service sees a body. Simplifies type translation
-// todo conform grpc types to those used in the sim
-//
-type BodyRaw struct {
-	Id                int64
-	X                 float32
-	Y                 float32
-	Z                 float32
-	Vx                float32
-	Vy                float32
-	Vz                float32
-	Mass              float32
-	Radius            float32
-	IsSun             bool
-	CollisionBehavior globals.CollisionBehavior
-	BodyColor         globals.BodyColor
-	FragFactor        float32
-	FragStep          float32
-	WithTelemetry     bool
-	Name              string
-	Class             string
-	Pinned            bool
-}
-
-//
 // Defines a struct of callback functions that the gRPC server can use to call back into the simulation
 // to modify the simulation while it is running
 //
@@ -60,5 +35,5 @@ type GrpcSimCallbacks struct {
 	AddBody func(float64, float64, float64, float64, float64, float64, float64, float64,
 		bool, globals.CollisionBehavior,globals.BodyColor, float64, float64, bool, string, string, bool) int
 	ModBody func(int, string, string, []string) ModBodyResult
-	GetBody func(int, string) BodyRaw
+	GetBody func(int, string) interface{}
 }

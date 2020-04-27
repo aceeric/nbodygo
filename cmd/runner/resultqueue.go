@@ -1,6 +1,8 @@
 package runner
 
-import "nbodygo/cmd/renderable"
+import (
+	"nbodygo/cmd/body"
+)
 
 //
 // Implements a holder of queues. Each queue holds the information needed to render a body in the
@@ -21,20 +23,20 @@ import "nbodygo/cmd/renderable"
 type ResultQueue struct {
 	computed bool
 	queNum uint
-	queue []renderable.Renderable
+	queue []*body.Renderable
 }
 
 //
 // Returns a ref to a queue in a result queue
 //
-func (rq *ResultQueue) Queue() []renderable.Renderable {
+func (rq *ResultQueue) Queue() []*body.Renderable {
 	return rq.queue
 }
 
 //
 // Adds the passed item to the queue
 //
-func (rq *ResultQueue) Add(info renderable.Renderable) {
+func (rq *ResultQueue) Add(info *body.Renderable) {
 	rq.queue = append(rq.queue, info)
 }
 
@@ -45,7 +47,7 @@ func newResultQueue(queNum uint) *ResultQueue  {
 	return &ResultQueue{
 		computed: false,
 		queNum:   queNum,
-		queue:    make([]renderable.Renderable, 0),
+		queue:    make([]*body.Renderable, 0),
 	}
 }
 

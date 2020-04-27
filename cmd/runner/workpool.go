@@ -37,7 +37,7 @@ type WorkPool struct {
 	submissions int64
 	millis      int64
 	// the simulation body collection
-	sbc body.SimBodyCollection
+	bc *body.BodyCollection
 	// how to resize the pool
 	resizeCh chan int
 	// tracks the ID of the most recently created worker
@@ -53,9 +53,9 @@ type Worker struct {
 	// how the worker pool shuts down workers
 	stop chan bool
 	// how the worker receives work
-	compute chan body.SimBody
+	compute chan *body.Body
 	// how the worker receives work
-	computeSlice chan []body.SimBody
+	computeSlice chan []*body.Body
 	// metrics
 	invocations int
 	millis      int64
@@ -67,11 +67,11 @@ type Worker struct {
 // channel
 //
 // args:
-//   w    This worker
-//   wg   Wait group to signal completion of force calculation for the body
-//   sbc  The collection wrapper over the bodies in the sim
+//   w   This worker
+//   wg  Wait group to signal completion of force calculation for the body
+//   bc  The collection wrapper over the bodies in the sim
 //
-func worker(w *Worker, wg *sync.WaitGroup, sbc body.SimBodyCollection) {
+func worker(w *Worker, wg *sync.WaitGroup, bc *body.BodyCollection) {
 	millis := int64(0)
 	//runtime.LockOSThread()
 	//C.lock_thread(C.int(w.id))
@@ -87,14 +87,14 @@ func worker(w *Worker, wg *sync.WaitGroup, sbc body.SimBodyCollection) {
 			return
 		case c := <-w.compute:
 			start := time.Now()
-			c.Compute(sbc)
+			c.Compute(bc)
 			invocations++
 			wg.Done()
 			millis += time.Now().Sub(start).Milliseconds()
 		case slice := <-w.computeSlice:
 			start := time.Now()
 			for _, b := range slice {
-				b.Compute(sbc)
+				b.Compute(bc)
 			}
 			invocations++
 			wg.Done()
@@ -110,35 +110,22 @@ func worker(w *Worker, wg *sync.WaitGroup, sbc body.SimBodyCollection) {
 //
 // args:
 //   goroutines  The number of go routines to create in the pool
-//   sbc         The collection wrapper over the bodies in the sim
+//   bc          The collection wrapper over the bodies in the sim
 //
 // returns:
 //   pointer to created pool
 //
-func NewWorkPool(goroutines int, sbc body.SimBodyCollection) *WorkPool {
+func NewWorkPool(goroutines int, bc *body.BodyCollection) *WorkPool {
 	wp := &WorkPool{
 		wrkIdx:      0,
 		workers:     []*Worker{},
 		wg:          sync.WaitGroup{},
 		submissions: 0,
 		millis:      0,
-		sbc:         sbc,
+		bc:          bc,
 		resizeCh:    make(chan int, 1),
 		maxId:       -1,
 	}
-	//for i := 0; i < goroutines; i++ {
-	//	w := Worker{
-	//		id:           int(i),
-	//		stop:         make(chan bool),
-	//		compute:      make(chan body.SimBody, 5), // TODO REVISIT COUNT
-	//		computeSlice: make(chan []body.SimBody, 5),
-	//		invocations:  0,
-	//		millis:       0,
-	//	}
-	//	wp.workers = append(wp.workers, &w)
-	//	go worker(&w, &wp.wg, sbc)
-	//	wp.maxId = i
-	//}
 	wp.createWorkers(goroutines)
 	return wp
 }
@@ -155,13 +142,13 @@ func (wp *WorkPool) createWorkers(goroutines int) {
 		w := Worker{
 			id:           wp.maxId,
 			stop:         make(chan bool),
-			compute:      make(chan body.SimBody, 5), // TODO REVISIT COUNT
-			computeSlice: make(chan []body.SimBody, 5),
+			compute:      make(chan *body.Body, 5), // TODO REVISIT COUNT
+			computeSlice: make(chan []*body.Body, 5),
 			invocations:  0,
 			millis:       0,
 		}
 		wp.workers = append(wp.workers, &w)
-		go worker(&w, &wp.wg, wp.sbc)
+		go worker(&w, &wp.wg, wp.bc)
 	}
 }
 
@@ -199,7 +186,7 @@ func (wp *WorkPool) PrintStats() {
 //
 // Submits a body to the pool for computation
 //
-func (wp *WorkPool) submit(c body.SimBody) {
+func (wp *WorkPool) submit(c *body.Body) {
 	wp.chkResize()
 	start := time.Now()
 	wp.wg.Add(1)
@@ -213,7 +200,7 @@ func (wp *WorkPool) submit(c body.SimBody) {
 // Submits a slice of the body array to the pool for computation - slightly faster
 // than the other way
 //
-func (wp *WorkPool) submitSlice(bodySlice []body.SimBody) {
+func (wp *WorkPool) submitSlice(bodySlice []*body.Body) {
 	wp.chkResize()
 	start := time.Now()
 	wp.wg.Add(1)

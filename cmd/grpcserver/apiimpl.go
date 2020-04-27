@@ -6,6 +6,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"nbodygo/cmd/body"
 	"nbodygo/cmd/globals"
 	"nbodygo/cmd/nbodygrpc"
 )
@@ -17,12 +18,13 @@ import (
 //
 
 func (s *nbodyServiceServer) GetCurrentConfig(_ context.Context, in *empty.Empty) (*nbodygrpc.CurrentConfig, error) {
+	_ = in
 	return &nbodygrpc.CurrentConfig{
 		Bodies:                 int64(s.callbacks.BodyCount()),
 		ResultQueueSize:        int64(s.callbacks.ResultQueueSize()),
 		ComputationThreads:     int64(s.callbacks.ComputationWorkers()),
-		SmoothingFactor:        float32(s.callbacks.Smoothing()),
-		RestitutionCoefficient: float32(s.callbacks.RestitutionCoefficient()),
+		SmoothingFactor:        s.callbacks.Smoothing(),
+		RestitutionCoefficient: s.callbacks.RestitutionCoefficient(),
 	}, nil
 }
 
@@ -43,7 +45,7 @@ func (s *nbodyServiceServer) SetResultQueueSize(_ context.Context, in *nbodygrpc
 }
 
 func (s *nbodyServiceServer) SetSmoothing(_ context.Context, in *nbodygrpc.Factor) (*nbodygrpc.ResultCode, error) {
-	s.callbacks.SetSmoothing(float64(in.Factor))
+	s.callbacks.SetSmoothing(in.Factor)
 	return &nbodygrpc.ResultCode{
 		ResultCode: nbodygrpc.ResultCode_OK,
 		Message:    "OK",
@@ -51,7 +53,7 @@ func (s *nbodyServiceServer) SetSmoothing(_ context.Context, in *nbodygrpc.Facto
 }
 
 func (s *nbodyServiceServer) SetRestitutionCoefficient(_ context.Context, in *nbodygrpc.RestitutionCoefficient) (*nbodygrpc.ResultCode, error) {
-	s.callbacks.SetRestitutionCoefficient(float64(in.RestitutionCoefficient))
+	s.callbacks.SetRestitutionCoefficient(in.RestitutionCoefficient)
 	return &nbodygrpc.ResultCode{
 		ResultCode: nbodygrpc.ResultCode_OK,
 		Message:    "OK",
@@ -103,29 +105,29 @@ func (s *nbodyServiceServer) ModBody(_ context.Context, in *nbodygrpc.ModBodyMes
 func (s *nbodyServiceServer) GetBody(_ context.Context, in *nbodygrpc.ModBodyMessage) (*nbodygrpc.BodyDescription, error) {
 	id := int(in.Id)
 	name := in.Name
-	rb := s.callbacks.GetBody(id, name)
-	if rb.Id == -1 {
+	b := s.callbacks.GetBody(id, name).(*body.Body)
+	if b.Id == -1 {
 		return nil, status.Errorf(codes.Unimplemented, "No such body ID: %v", id)
 	}
 	bd := nbodygrpc.BodyDescription{
-		Id:                rb.Id,
-		X:                 rb.X,
-		Y:                 rb.Y,
-		Z:                 rb.Z,
-		Vx:                rb.Vx,
-		Vy:                rb.Vy,
-		Vz:                rb.Vz,
-		Mass:              rb.Mass,
-		Radius:            rb.Radius,
-		IsSun:             rb.IsSun,
-		CollisionBehavior: simCbToGrpcCb(rb.CollisionBehavior),
-		BodyColor:         SimColorToGrpcColor(rb.BodyColor),
-		FragFactor:        rb.FragFactor,
-		FragStep:          rb.FragStep,
-		WithTelemetry:     rb.WithTelemetry,
-		Name:              rb.Name,
-		Class:             rb.Class,
-		Pinned:            rb.Pinned,
+		Id:                int64(b.Id),
+		X:                 b.X,
+		Y:                 b.Y,
+		Z:                 b.Z,
+		Vx:                b.Vx,
+		Vy:                b.Vy,
+		Vz:                b.Vz,
+		Mass:              b.Mass,
+		Radius:            b.Radius,
+		IsSun:             b.IsSun,
+		CollisionBehavior: simCbToGrpcCb(b.CollisionBehavior),
+		BodyColor:         SimColorToGrpcColor(b.BodyColor),
+		FragFactor:        b.FragFactor,
+		FragStep:          b.FragStep,
+		WithTelemetry:     b.WithTelemetry,
+		Name:              b.Name,
+		Class:             b.Class,
+		Pinned:            b.Pinned,
 	}
 	return &bd, nil
 }

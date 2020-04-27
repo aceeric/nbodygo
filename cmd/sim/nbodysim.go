@@ -30,7 +30,7 @@ const (
 //
 type NBodySim struct {
 	// A list of bodies to start the simulation with
-	bodies []body.SimBody
+	bodies []*body.Body
 
 	// The number of workers to use for the computation runner
 	workers int
@@ -75,16 +75,16 @@ type NBodySim struct {
 //
 func (sim NBodySim) Run() {
 	// TODO start instrumentation
-	sbc := body.NewSimBodyCollection(sim.bodies) // todo return interface vs return struct consistency
+	bc := body.NewSimBodyCollection(sim.bodies)                      // todo return interface vs return struct consistency
 	rqh := runner.NewResultQueueHolder(defaultMaxResultQueues, true) // todo all NEWs return pointers uniformly
-	simDone := make(chan bool) // to shut down the G3N engine
+	simDone := make(chan bool)                                       // to shut down the G3N engine
 	if sim.render {
 		g3napp.StartG3nApp(&sim.initialCam, sim.resolution[0], sim.resolution[1], &rqh, simDone)
 	}
-	crunner := runner.NewComputationRunner(sim.workers, sim.scaling, &rqh, sbc).Start()
-	grpcserver.Start(newGrpcSimCb(sbc, crunner, &rqh))
+	crunner := runner.NewComputationRunner(sim.workers, sim.scaling, &rqh, bc).Start()
+	grpcserver.Start(newGrpcSimCb(bc, crunner, &rqh))
 	if sim.simWorker != nil {
-		go sim.simWorker(sbc)
+		go sim.simWorker(bc)
 	}
 	waitForSimEnd(sim.render, &rqh, simDone, sim.runMillis)
 	grpcserver.Stop()
@@ -115,7 +115,7 @@ func waitForSimEnd(render bool, rqh *runner.ResultQueueHolder, simDone chan bool
 			if ok {
 				dummy := float64(0)
 				for _, bri := range rq.Queue() {
-					dummy += bri.Radius()
+					dummy += bri.Radius
 				}
 			}
 			time.Sleep(noRenderSleepMs)
@@ -134,7 +134,7 @@ func waitForSimEnd(render bool, rqh *runner.ResultQueueHolder, simDone chan bool
 // Builder pattern // TODO move to its own file?
 //
 type NBodySimBuilder interface {
-	Bodies([]body.SimBody) NBodySimBuilder
+	Bodies([]*body.Body) NBodySimBuilder
 	Workers(int) NBodySimBuilder
 	Scaling(float64) NBodySimBuilder
 	InitialCam(math32.Vector3) NBodySimBuilder
@@ -148,7 +148,7 @@ type NBodySimBuilder interface {
 }
 
 type nBodySimBuilder struct {
-	bodies     []body.SimBody
+	bodies     []*body.Body
 	workers    int
 	scaling    float64
 	initialCam math32.Vector3
@@ -160,7 +160,7 @@ type nBodySimBuilder struct {
 	runMillis  int
 }
 
-func (b nBodySimBuilder) Bodies(bodies []body.SimBody) NBodySimBuilder {
+func (b nBodySimBuilder) Bodies(bodies []*body.Body) NBodySimBuilder {
 	b.bodies = bodies
 	return b
 }
@@ -230,7 +230,7 @@ func newNBodySim(b nBodySimBuilder) NBodySim {
 func NewNBodySimBuilder() NBodySimBuilder {
 	// initialize a builder with reasonable defaults in case overrides are not provided
 	b := nBodySimBuilder{
-		bodies:     []body.SimBody{}, // no bodies
+		bodies:     []*body.Body{}, // no bodies
 		workers:    defaultWorkers,
 		scaling:    defaultTimeScaling,
 		initialCam: *math32.NewVector3(100, 100, 100),

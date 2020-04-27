@@ -24,19 +24,19 @@ type Event struct {
 // If the event needs two bodies
 //
 type TwoBodies struct {
-	b1 SimBody
-	b2 SimBody
+	b1 *Body
+	b2 *Body
 }
 
 //
 // If the event needs one body
 //
 type OneBody struct {
-	b SimBody
+	b *Body
 }
 
 //
-// Dispatches the event to the appropriate SimBody handler function
+// Dispatches the event to the appropriate Body handler function
 //
 func (ev Event) Handle() {
 	switch ev.evType {
@@ -52,7 +52,7 @@ func (ev Event) Handle() {
 //
 // Gets the body being added from the passed event
 //
-func (ev Event) GetAdd() SimBody {
+func (ev Event) GetAdd() *Body {
 	if ev.evType == AddEvent {
 		return ev.OneBody.b
 	} else {
@@ -63,7 +63,7 @@ func (ev Event) GetAdd() SimBody {
 //
 // Creates an even representing a collision between two bodies
 //
-func NewCollision(b1 SimBody, b2 SimBody) Event {
+func NewCollision(b1 *Body, b2 *Body) Event {
 	return Event{
 		evType: CollisionEvent,
 		TwoBodies: TwoBodies{
@@ -76,7 +76,7 @@ func NewCollision(b1 SimBody, b2 SimBody) Event {
 //
 // Creates an even representing one body subsuming another body
 //
-func NewSubsume(b1 SimBody, b2 SimBody) Event {
+func NewSubsume(b1 *Body, b2 *Body) Event {
 	return Event{
 		evType: SubsumeEvent,
 		TwoBodies: TwoBodies{
@@ -89,7 +89,7 @@ func NewSubsume(b1 SimBody, b2 SimBody) Event {
 //
 // Creates an even representing a body being added into a running simulation
 //
-func NewAdd(b SimBody) Event {
+func NewAdd(b *Body) Event {
 	return Event{
 		evType: AddEvent,
 		OneBody: OneBody{

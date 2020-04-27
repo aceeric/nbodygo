@@ -46,26 +46,26 @@ message CurrentConfig {
   int64  bodies = 1;
   int64  result_queue_size = 2;
   int64  computation_threads = 3;
-  float smoothing_factor = 4;
-  float restitution_coefficient = 6;
+  double smoothing_factor = 4;
+  double restitution_coefficient = 6;
 }
 
 // All the params required to represent a body in the simulation
 message BodyDescription {
   int64 id = 1; // ignored on create
-  float x = 2;
-  float y = 3;
-  float z = 4;
-  float vx = 5;
-  float vy = 6;
-  float vz = 7;
-  float mass = 8;
-  float radius = 9;
+  double x = 2;
+  double y = 3;
+  double z = 4;
+  double vx = 5;
+  double vy = 6;
+  double vz = 7;
+  double mass = 8;
+  double radius = 9;
   bool is_sun = 10;
   CollisionBehaviorEnum collision_behavior = 11;
   BodyColorEnum body_color = 12;
-  float frag_factor = 13;
-  float frag_step = 14;
+  double frag_factor = 13;
+  double frag_step = 14;
   bool with_telemetry = 15;
   string name = 16;
   string class = 17;
@@ -94,12 +94,12 @@ message ItemCount {
 
 // A smoothing factor
 message Factor {
-  float factor = 1;
+  double factor = 1;
 }
 
 // Coefficient of restitution
 message RestitutionCoefficient {
-  float restitution_coefficient = 1;
+  double restitution_coefficient = 1;
 }
 
 // Returned to clients from all messages in the API

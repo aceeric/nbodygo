@@ -7,12 +7,14 @@ import (
 	"sync"
 )
 
+type IterationConsumer func (*Body)
+
 //
 // The collection state
 //
-type simBodyCollection struct {
+type BodyCollection struct {
 	// this is the body array that all goroutines will iterate
-	arr []SimBody
+	arr []*Body
 	// a list of concurrent adds, as well as collisions accumulated during each compute cycle
 	events *list.List
 	// concurrency
@@ -24,7 +26,7 @@ type simBodyCollection struct {
 		id   int
 		name string
 	}
-	sendBodyCh chan SimBody
+	sendBodyCh chan *Body
 	// diagnostic/debugging aid
 	cycle     int
 	modBodyCh chan struct {
@@ -41,9 +43,9 @@ type simBodyCollection struct {
 //
 // returns: the struct
 //
-func NewSimBodyCollection(bodies []SimBody) SimBodyCollection {
-	c := simBodyCollection{
-		arr:    make([]SimBody, len(bodies)),
+func NewSimBodyCollection(bodies []*Body) *BodyCollection {
+	c := BodyCollection{
+		arr:    make([]*Body, len(bodies)),
 		events: list.New(),
 		lock:   sync.Mutex{},
 		evCh:   make(chan Event, 5000), // todo factor of body count
@@ -52,7 +54,7 @@ func NewSimBodyCollection(bodies []SimBody) SimBodyCollection {
 			id   int
 			name string
 		}, 10),
-		sendBodyCh: make(chan SimBody, 1),
+		sendBodyCh: make(chan *Body, 1),
 		modBodyCh: make(chan
 		struct {
 			id          int
@@ -68,8 +70,8 @@ func NewSimBodyCollection(bodies []SimBody) SimBodyCollection {
 	return &c
 }
 
-func (sbc *simBodyCollection) GetArray() []SimBody {
-	return sbc.arr
+func (bc *BodyCollection) GetArray() []*Body {
+	return bc.arr
 }
 
 //
@@ -77,8 +79,8 @@ func (sbc *simBodyCollection) GetArray() []SimBody {
 // done concurrently. Synchronization in the tight nested body computation loop has a prohibitive impact
 // on performance
 //
-func (sbc *simBodyCollection) Enqueue(ev Event) {
-	sbc.evCh <- ev
+func (bc *BodyCollection) Enqueue(ev Event) {
+	bc.evCh <- ev
 }
 
 //
@@ -86,15 +88,15 @@ func (sbc *simBodyCollection) Enqueue(ev Event) {
 // from the 'Enqueue' function through the 'evCh' channel. Adds events to an internal list, which is handled
 // by a call to the 'ProcessMods' function. (See computation runner.)
 //
-func (sbc *simBodyCollection) handleEvents() {
+func (bc *BodyCollection) handleEvents() {
 	for {
 		select {
 		default:
 			runtime.Gosched()
-		case ev := <-sbc.evCh:
-			sbc.lock.Lock()
-			sbc.events.PushFront(ev)
-			sbc.lock.Unlock()
+		case ev := <-bc.evCh:
+			bc.lock.Lock()
+			bc.events.PushFront(ev)
+			bc.lock.Unlock()
 		}
 	}
 }
@@ -103,43 +105,34 @@ func (sbc *simBodyCollection) handleEvents() {
 // because the computation cycle is always running, this function provides a way for callers
 // to register a request to get a body. The function writes to a channel which is checked by the
 // 'HandleGetBody' function which is called by the collection's 'Cycle' method. That method finds
-// the body, clones it, and writes it to the channel that is checked by the function returned by
-// this function. This gives the caller a copy of the body created in a thread-safe way. E.g.:
+// the body, clones it, and writes it to the channel that is checked by this function. This gives
+// the caller a copy of the body created in a thread-safe way.
 //
-// Assume 'sbc' is pointer to the collection:
-//
-// var b SimBody = sbc.GetBody()()
-//
-// The second parens invoke the return function, and doesn't require exposing the channel to the
-// caller
-//
-func (sbc *simBodyCollection) GetBody(id int, name string) func() SimBody {
-	sbc.getBodyCh <- struct {
+func (bc *BodyCollection) GetBody(id int, name string) *Body {
+	bc.getBodyCh <- struct {
 		id   int
 		name string
 	}{id: id, name: name}
-	return func() SimBody {
-		return <-sbc.sendBodyCh
-	}
+	return <-bc.sendBodyCh
 }
 
 //
 // if there is a 'get body' message on the 'getBodyCh' channel, then searches the body array for the
 // body and if found, calls doSendBody to send the body on the 'sendBodyCh' channel
 //
-func (sbc *simBodyCollection) HandleGetBody() {
+func (bc *BodyCollection) HandleGetBody() {
 	select {
 	default:
-	case ev := <-sbc.getBodyCh:
+	case ev := <-bc.getBodyCh:
 		id := ev.id
 		name := ev.name
-		for i, size := 0, len(sbc.arr); i < size; i++ {
-			if (name != "" && name == sbc.arr[i].Name()) || (id == sbc.arr[i].Id()) {
-				sbc.doSendBody(sbc.arr[i])
+		for i, size := 0, len(bc.arr); i < size; i++ {
+			if (name != "" && name == bc.arr[i].Name) || (id == bc.arr[i].Id) {
+				bc.doSendBody(bc.arr[i])
 				return
 			}
 		}
-		sbc.doSendBody(nil)
+		bc.doSendBody(nil)
 	}
 }
 
@@ -147,15 +140,14 @@ func (sbc *simBodyCollection) HandleGetBody() {
 // Clones the passed body and sends it to the 'sendBodyCh' channel. That channel is monitored
 // by the function returned by the 'GetBody' function
 //
-func (sbc *simBodyCollection) doSendBody(b SimBody) {
-	if len(sbc.sendBodyCh) < cap(sbc.sendBodyCh) { // if too many requests just discard them
+func (bc *BodyCollection) doSendBody(b *Body) {
+	if len(bc.sendBodyCh) < cap(bc.sendBodyCh) { // if too many requests just discard them
 		if b != nil {
-			bb := b.(*Body)
-			clone := NewBody(bb.id, bb.x, bb.y, bb.z, bb.vx, bb.vy, bb.vz, bb.mass, bb.radius, bb.collisionBehavior, bb.bodyColor,
-				bb.fragFactor, bb.fragmentationStep, bb.withTelemetry, bb.name, bb.class, bb.pinned)
-			sbc.sendBodyCh <- &clone
+			clone := NewBody(b.Id, b.X, b.Y, b.Z, b.Vx, b.Vy, b.Vz, b.Mass, b.Radius, b.CollisionBehavior, b.BodyColor,
+				b.FragFactor, b.FragStep, b.WithTelemetry, b.Name, b.Class, b.Pinned)
+			bc.sendBodyCh <- clone
 		} else {
-			sbc.sendBodyCh <- nil
+			bc.sendBodyCh <- nil
 		}
 	}
 }
@@ -165,14 +157,14 @@ func (sbc *simBodyCollection) doSendBody(b SimBody) {
 // pattern as GetBody / HandleGetBody / doSendBody except since all it has to return is a result code, it
 // doesn't need a doModBody
 //
-func (sbc *simBodyCollection) ModBody(id int, name, class string, mods []string) func() grpcsimcb.ModBodyResult {
-	sbc.modBodyCh <- struct {
+func (bc *BodyCollection) ModBody(id int, name, class string, mods []string) func() grpcsimcb.ModBodyResult {
+	bc.modBodyCh <- struct {
 		id   int
 		name, class string
 		mods []string
 	}{id: id, name: name, class: class, mods: mods}
 	return func() grpcsimcb.ModBodyResult {
-		return <-sbc.modBodyResultCh
+		return <-bc.modBodyResultCh
 	}
 }
 
@@ -180,27 +172,26 @@ func (sbc *simBodyCollection) ModBody(id int, name, class string, mods []string)
 // if there is a 'mod body' message on the 'modBodyCh' channel, then searches the body array for all matching
 // bodies and if found, calls ApplyMods on the body, then sends the result on the 'modBodyResultCh' channel
 //
-func (sbc *simBodyCollection) HandleModBody() {
+func (bc *BodyCollection) HandleModBody() {
 	select {
 	default:
-	case mod := <-sbc.modBodyCh:
+	case mod := <-bc.modBodyCh:
 		var found, modified = 0, 0
-		for i, size := 0, len(sbc.arr); i < size; i++ {
-			b := sbc.arr[i].(*Body)
-			if mod.class != "" && mod.class == b.class ||
-				mod.name != "" && mod.name == b.name ||
-				mod.id == b.id {
+		for i, size := 0, len(bc.arr); i < size; i++ {
+			if mod.class != "" && mod.class == bc.arr[i].Class ||
+				mod.name != "" && mod.name == bc.arr[i].Name ||
+				mod.id == bc.arr[i].Id {
 				found++
-				if b.ApplyMods(mod.mods) {
+				if bc.arr[i].ApplyMods(mod.mods) {
 					modified++
 				}
 			}
 		}
 		switch {
-		case found == 0: sbc.modBodyResultCh <- grpcsimcb.NoMatch
-		case modified == 0: sbc.modBodyResultCh <- grpcsimcb.ModNone
-		case found == modified: sbc.modBodyResultCh <- grpcsimcb.ModAll
-		default: sbc.modBodyResultCh <- grpcsimcb.ModSome
+		case found == 0: bc.modBodyResultCh <- grpcsimcb.NoMatch
+		case modified == 0: bc.modBodyResultCh <- grpcsimcb.ModNone
+		case found == modified: bc.modBodyResultCh <- grpcsimcb.ModAll
+		default: bc.modBodyResultCh <- grpcsimcb.ModSome
 		}
 	}
 }
@@ -210,38 +201,19 @@ func (sbc *simBodyCollection) HandleModBody() {
 // encapsulate the iterator with the consumer as a callback. That way if there ever needs to be something
 // unique about the iteration it can be hidden here and iterators don't need to be concerned with it
 //
-func (sbc *simBodyCollection) IterateOnce(c IterationConsumer) {
-	for i, size := 0, len(sbc.arr); i < size; i++ {
-		c(sbc.arr[i])
+func (bc *BodyCollection) IterateOnce(c IterationConsumer) {
+	for i, size := 0, len(bc.arr); i < size; i++ {
+		c(bc.arr[i])
 	}
 }
 
 //
 // Gets the number of bodies in the array
 //
-func (sbc *simBodyCollection) Count() int {
-	sbc.lock.Lock()
-	defer sbc.lock.Unlock()
-	return len(sbc.arr)
-}
-
-//
-// For gRPC server since the collection is not thread safe: provide a copy of the array. This is
-// not efficient but traversals by the gRPC interface are extremely infrequent. The computation runner
-// doesn't need this because it orchestrates the state change of the collection - it is the only entity that
-// calls 'Cycle' and it only does this when it knows that there are no goroutines computing force. But the
-// gRPC server is event-driven and could request to iterate the body array at any time. Since this locks, it
-// will slow the computation runner but - the gRPC interface is not intended to be frequently used for
-// traversing the body array
-//
-func (sbc *simBodyCollection) GetArrayCopy() *[]SimBody {
-	sbc.lock.Lock()
-	defer sbc.lock.Unlock()
-	arrCopy := make([]SimBody, len(sbc.arr))
-	for i, size := 0, len(sbc.arr); i < size; i++ {
-		arrCopy[i] = sbc.arr[i]
-	}
-	return &arrCopy
+func (bc *BodyCollection) Count() int {
+	bc.lock.Lock()
+	defer bc.lock.Unlock()
+	return len(bc.arr)
 }
 
 //
@@ -249,24 +221,24 @@ func (sbc *simBodyCollection) GetArrayCopy() *[]SimBody {
 // changing body state in such a way that would require synchronization to avoid race conditions. Adds
 // are excluded from this processing. (Handled in the 'Cycle' function.)
 //
-func (sbc *simBodyCollection) ProcessMods() {
-	sbc.lock.Lock()
-	if sbc.events.Len() == 0 {
-		sbc.lock.Unlock()
+func (bc *BodyCollection) ProcessMods() {
+	bc.lock.Lock()
+	if bc.events.Len() == 0 {
+		bc.lock.Unlock()
 		return
 	}
 	evs := []Event{}
 	var prev *list.Element = nil
-	for e := sbc.events.Front(); e != nil; e = e.Next() {
+	for e := bc.events.Front(); e != nil; e = e.Next() {
 		if prev != nil {
-			sbc.events.Remove(prev)
+			bc.events.Remove(prev)
 		}
 		if e.Value.(Event).evType != AddEvent {
 			evs = append(evs, e.Value.(Event))
 			prev = e
 		}
 	}
-	sbc.lock.Unlock()
+	bc.lock.Unlock()
 	for i, len := 0, len(evs); i < len; i++ {
 		evs[i].Handle()
 	}
@@ -275,9 +247,9 @@ func (sbc *simBodyCollection) ProcessMods() {
 //
 // Returns the count of events in the internal 'events' list that are Adds
 //
-func (sbc *simBodyCollection) countAdds() int {
+func (bc *BodyCollection) countAdds() int {
 	cnt := 0
-	for e := sbc.events.Front(); e != nil; e = e.Next() {
+	for e := bc.events.Front(); e != nil; e = e.Next() {
 		if e.Value.(Event).evType == AddEvent {
 			cnt++
 		}
@@ -293,47 +265,47 @@ func (sbc *simBodyCollection) countAdds() int {
 // args:
 //   R  coefficient of restitution for elastic collision gets plugged into each added body
 //
-func (sbc *simBodyCollection) Cycle(R float64) {
+func (bc *BodyCollection) Cycle(R float64) {
 	cnt := 0
-	for i, size := 0, len(sbc.arr); i < size; i++ {
-		if sbc.arr[i].Exists() {
+	for i, size := 0, len(bc.arr); i < size; i++ {
+		if bc.arr[i].Exists {
 			cnt++
 		}
 	}
-	sbc.lock.Lock() // prevents new events
-	defer sbc.lock.Unlock()
-	if cnt < len(sbc.arr) {
-		cnt += sbc.countAdds()
+	bc.lock.Lock() // prevents new events
+	defer bc.lock.Unlock()
+	if cnt < len(bc.arr) {
+		cnt += bc.countAdds()
 		// bodies were set to not exist so implement delete by copying/compacting the array
-		arr := make([]SimBody, cnt)
+		arr := make([]*Body, cnt)
 		j := 0
-		for i, size := 0, len(sbc.arr); i < size; i++ {
-			if sbc.arr[i].Exists() {
-				arr[j] = sbc.arr[i]
+		for i, size := 0, len(bc.arr); i < size; i++ {
+			if bc.arr[i].Exists {
+				arr[j] = bc.arr[i]
 				j++
 			}
 		}
-		for e := sbc.events.Front(); e != nil; e = e.Next() {
+		for e := bc.events.Front(); e != nil; e = e.Next() {
 			if e.Value.(Event).evType == AddEvent {
 				arr[j] = e.Value.(Event).GetAdd()
-				arr[j].SetR(R)
+				arr[j].r = R
 				j++
 			}
 		}
-		sbc.arr = arr
-		sbc.events.Init()
+		bc.arr = arr
+		bc.events.Init()
 	} else {
-		cnt = sbc.countAdds()
+		cnt = bc.countAdds()
 		if cnt > 0 {
-			for e := sbc.events.Front(); e != nil; e = e.Next() {
+			for e := bc.events.Front(); e != nil; e = e.Next() {
 				if e.Value.(Event).evType == AddEvent {
 					b := e.Value.(Event).GetAdd()
-					b.SetR(R)
-					sbc.arr = append(sbc.arr, b)
+					b.r = R
+					bc.arr = append(bc.arr, b)
 				}
 			}
 		}
-		sbc.events.Init()
+		bc.events.Init()
 	}
-	sbc.cycle++
+	bc.cycle++
 }

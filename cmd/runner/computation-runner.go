@@ -24,7 +24,7 @@ type ComputationRunner struct {
 	// the work pool
 	wp *WorkPool
 	// the bodies in the sim
-	sbc body.SimBodyCollection
+	bc *body.BodyCollection
 	// supports test - stop after this many iterations
 	maxIteration int
 	// true if running
@@ -63,15 +63,15 @@ func (r *ComputationRunner) PrintStats() {
 //   workerCnt         Number of workers in the pool
 //   timeScaling       Multiplier for force and velocity calc - determines sim "speed"
 //   resultQueueHolder Holds computed results
-//   sbc               Collection of bodies in the simulation
+//   bc                Collection of bodies in the simulation
 //
 func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder *ResultQueueHolder,
-	sbc body.SimBodyCollection) *ComputationRunner { // TODO MAKE THIS AN INTERFACE
+	bc *body.BodyCollection) *ComputationRunner {
 	r := ComputationRunner{
 		stop:              make(chan bool),
 		workerCnt:         workerCnt,
-		wp:                NewWorkPool(workerCnt, sbc),
-		sbc:               sbc,
+		wp:                NewWorkPool(workerCnt, bc),
+		bc:                bc,
 		timeScaling:       timeScaling,
 		timeScaleChan:     make(chan float64, 1),
 		resultQueueHolder: resultQueueHolder,
@@ -187,23 +187,23 @@ func (r *ComputationRunner) processDeletes() {
 		delCnt := r.deletes
 		r.deletes = 0
 		if delCnt == -1 {
-			r.sbc.IterateOnce(func(b body.SimBody) {
+			r.bc.IterateOnce(func(b *body.Body) {
 				b.SetNotExists()
 			})
 		} else {
 			removedCnt, step, iter := 0, 0, 0
-			if delCnt > r.sbc.Count() {
+			if delCnt > r.bc.Count() {
 				step = 1
 			} else {
-				step = r.sbc.Count() / delCnt
+				step = r.bc.Count() / delCnt
 			}
 			shouldRemove := false
-			r.sbc.IterateOnce(func(b body.SimBody) {
+			r.bc.IterateOnce(func(b *body.Body) {
 				if iter % step == 0 {
 					shouldRemove = true
 				}
 				iter++
-				if shouldRemove && !b.IsPinned() && b.Exists() {
+				if shouldRemove && !b.Pinned && b.Exists {
 					b.SetNotExists()
 					shouldRemove = false
 					removedCnt++
@@ -275,8 +275,8 @@ func (r *ComputationRunner) runOneComputation() {
 	r.updateTimeScaling()
 	r.updateCoefficientOfRestitution()
 	r.processDeletes()
-	r.sbc.HandleGetBody()
-	r.sbc.HandleModBody()
+	r.bc.HandleGetBody()
+	r.bc.HandleModBody()
 	rq, ok := r.resultQueueHolder.NewResultQueue()
 	if !ok {
 		return
@@ -287,7 +287,7 @@ func (r *ComputationRunner) runOneComputation() {
 	// slightly better performance this way - give each worker a slice to work on
 	if true {
 		workers := len(r.wp.workers)
-		arr := r.sbc.GetArray()
+		arr := r.bc.GetArray()
 		max := len(arr)
 		size := max / workers
 		if max < 100 {
@@ -313,8 +313,8 @@ func (r *ComputationRunner) runOneComputation() {
 	} else {
 		// this approach submits to the work pool one body at a time, which
 		// is how the Java app does it
-		r.sbc.IterateOnce(func(b body.SimBody) {
-			if b.Exists() {
+		r.bc.IterateOnce(func(b *body.Body) {
+			if b.Exists {
 				r.wp.submit(b)
 				r.submits++
 				submits++
@@ -328,13 +328,13 @@ func (r *ComputationRunner) runOneComputation() {
 			r.waitMillis += time.Now().Sub(start).Milliseconds()
 		}
 	}
-	r.sbc.ProcessMods()
-	r.sbc.IterateOnce(func(b body.SimBody) {
+	r.bc.ProcessMods()
+	r.bc.IterateOnce(func(b *body.Body) {
 		ri := b.Update(r.timeScaling, r.R)
 		rq.Add(ri)
 	})
 	r.resultQueueHolder.Add(rq)
-	r.sbc.Cycle(r.R)
+	r.bc.Cycle(r.R)
 	r.computations++
 	r.goroutines += runtime.NumGoroutine()
 }

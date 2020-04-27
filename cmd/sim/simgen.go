@@ -20,7 +20,7 @@ import (
 // function so it can be called by the simulation runner (the Run function in the 'sim' package.) This defines
 // the function signature for those workers.
 //
-type SimWorker = func(body.SimBodyCollection)
+type SimWorker = func(*body.BodyCollection)
 
 //
 // These declarations support reflection, which is used to get the function corresponding to the --sim-name
@@ -50,7 +50,7 @@ const (
 // returns: a list of bodies, and optionally a worker function to modify the sim after it starts
 //
 func Generate(simName string, bodyCount int, collisionBehavior globals.CollisionBehavior,
-	defaultBodyColor globals.BodyColor, simArgs string) ([]body.SimBody, SimWorker) {
+	defaultBodyColor globals.BodyColor, simArgs string) ([]*body.Body, SimWorker) {
 
 	// use reflection to get the sim name passed in the 'simName' arg
 	value := reflect.ValueOf(instance)
@@ -72,7 +72,7 @@ func Generate(simName string, bodyCount int, collisionBehavior globals.Collision
 	// call the sim generator function
 	retVals := method.Call(params)
 	// get the return values
-	bodies := retVals[0].Interface().([]body.SimBody)
+	bodies := retVals[0].Interface().([]*body.Body)
 	workerFunc := retVals[1].Interface().(SimWorker)
 	return bodies, workerFunc
 }
@@ -90,7 +90,7 @@ func Generate(simName string, bodyCount int, collisionBehavior globals.Collision
 // returns: a list of bodies, no worker function
 
 func (g generator) Sim1(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) ([]body.SimBody, SimWorker) {
+	simArgs string) ([]*body.Body, SimWorker) {
 	var parsedSimArgs []string
 	clumpRadius := float64(30)
 	dist := float64(200)
@@ -107,7 +107,7 @@ func (g generator) Sim1(bodyCount int, collisionBehavior globals.CollisionBehavi
 		z, _ := strconv.ParseFloat(parsedSimArgs[1], 32)
 		dist = z
 	}
-	var bodies []body.SimBody
+	var bodies []*body.Body
 	var vx, vy, vz, y, mass, radius float64
 	V := float64(958000000)
 	rand.Seed(time.Now().UnixNano())
@@ -159,7 +159,7 @@ func (g generator) Sim1(bodyCount int, collisionBehavior globals.CollisionBehavi
 				v := util.GetVectorEven(*util.NewVector3(xc, y, zc), clumpRadius)
 				b := body.NewBody(body.NextId(), v.X, v.Y, v.Z, vx, vy, vz, mass, radius, collisionBehavior,
 					color, 0, 0, false, "", "", false)
-				bodies = append(bodies, &b)
+				bodies = append(bodies, b)
 			}
 		}
 	}
@@ -176,8 +176,9 @@ func (g generator) Sim1(bodyCount int, collisionBehavior globals.CollisionBehavi
 // returns: a list of bodies, no worker function
 //
 func (g generator) Sim2(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) ([]body.SimBody, SimWorker) {
-	bodies := createSunAndAddToList([]body.SimBody{}, body.NextId(), 0, 0, 0, 25*solarMass*.1, 25, 100)
+	simArgs string) ([]*body.Body, SimWorker) {
+	_ = simArgs
+	bodies := createSunAndAddToList([]*body.Body{}, body.NextId(), 0, 0, 0, 25*solarMass*.1, 25, 100)
 	rand.Seed(time.Now().UnixNano())
 	for i := 1; i < bodyCount; i++ {
 		v := util.GetVectorEven(*util.NewVector3(500, 500, 500), 50)
@@ -186,7 +187,7 @@ func (g generator) Sim2(bodyCount int, collisionBehavior globals.CollisionBehavi
 		b := body.NewBody(body.NextId(), v.X, v.Y, v.Z, -1124500000, -824500000, -1124500000,
 			mass, radius, collisionBehavior, defaultBodyColor, 1, 1, false, "",
 			"", false)
-		bodies = append(bodies, &b)
+		bodies = append(bodies, b)
 	}
 	return bodies, nil
 }
@@ -213,14 +214,14 @@ func (g generator) Sim2(bodyCount int, collisionBehavior globals.CollisionBehavi
 // returns: a list of bodies, and a worker function to insert additional bodies
 //
 func (g generator) Sim3(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) ([]body.SimBody, SimWorker) {
+	simArgs string) ([]*body.Body, SimWorker) {
 	var parsedSimArgs []string
 	if len(simArgs) == 0 {
 		parsedSimArgs = []string{"50", "90E25", "700"}
 	} else {
 		parsedSimArgs = strings.Split(simArgs, ",")
 	}
-	radius, mass := float64(50), float64(90E25)
+	radius, mass := float64(50), 90E25
 	injectCnt := 700
 
 	if len(parsedSimArgs) > 0 {
@@ -233,7 +234,7 @@ func (g generator) Sim3(bodyCount int, collisionBehavior globals.CollisionBehavi
 		z, _ := strconv.ParseInt(parsedSimArgs[2], 0, 32)
 		injectCnt = int(z)
 	}
-	bodies := createSunAndAddToList([]body.SimBody{}, body.NextId(), 100000, 100000, 100000, 1, 500, 4E5)
+	bodies := createSunAndAddToList([]*body.Body{}, body.NextId(), 100000, 100000, 100000, 1, 500, 4E5)
 	for j := -1; j <= 1; j += 2 {
 		for i := 0; i < bodyCount/2; i++ {
 			bodyColor := defaultBodyColor
@@ -248,10 +249,10 @@ func (g generator) Sim3(bodyCount int, collisionBehavior globals.CollisionBehavi
 			b := body.NewBody(body.NextId(), v.X, v.Y, v.Z, float64(j)*121185000, float64(j)*121185000, float64(j)*-121185000,
 				mass, 5, collisionBehavior, bodyColor, 1, 1, false, "",
 				"", false)
-			bodies = append(bodies, &b)
+			bodies = append(bodies, b)
 		}
 	}
-	simWorker := func(sbc body.SimBodyCollection) {
+	simWorker := func(bc *body.BodyCollection) {
 		cnt := 0
 		rand.Seed(time.Now().UnixNano())
 		for {
@@ -272,7 +273,7 @@ func (g generator) Sim3(bodyCount int, collisionBehavior globals.CollisionBehavi
 			b := body.NewBody(body.NextId(), x, y, z, -99827312, 112344240, 323464000,
 				mass, radius, collisionBehavior, bodyColor, 1, 1, false, "",
 				"", false)
-			sbc.Enqueue(body.NewAdd(&b))
+			bc.Enqueue(body.NewAdd(b))
 			time.Sleep(time.Millisecond * 500)
 		}
 	}
@@ -287,8 +288,9 @@ func (g generator) Sim3(bodyCount int, collisionBehavior globals.CollisionBehavi
 // returns:  a list of bodies, and no sim worker
 
 func (g generator) Sim4(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) ([]body.SimBody, SimWorker) {
-	bodies := createSunAndAddToList([]body.SimBody{}, body.NextId(), 0, 0, 0, solarMass, 30, 90)
+	simArgs string) ([]*body.Body, SimWorker) {
+	_= simArgs
+	bodies := createSunAndAddToList([]*body.Body{}, body.NextId(), 0, 0, 0, solarMass, 30, 90)
 	for i := 1; i < bodyCount; i++ {
 		mass := 9e5
 		radius := float64(2)
@@ -296,7 +298,7 @@ func (g generator) Sim4(bodyCount int, collisionBehavior globals.CollisionBehavi
 			0, 0, -824500000 + float64(i * 1E6), // vx,vy,vz
 			mass, radius, collisionBehavior, defaultBodyColor, 1, 1, false,
 			"", "", false)
-		bodies = append(bodies, &b)
+		bodies = append(bodies, b)
 	}
 	return bodies, nil
 }
@@ -319,7 +321,10 @@ func (g generator) Sim4(bodyCount int, collisionBehavior globals.CollisionBehavi
 // returns a body list and a worker as described
 //
 func (g generator) Sim5(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) ([]body.SimBody, SimWorker) {
+	simArgs string) ([]*body.Body, SimWorker) {
+	_ = bodyCount
+	_ = collisionBehavior
+	_ = defaultBodyColor
 
 	fragFactor, fragStep := .01, float64(1000)
 	if len(simArgs) > 0 {
@@ -331,35 +336,35 @@ func (g generator) Sim5(bodyCount int, collisionBehavior globals.CollisionBehavi
 			fragStep, _ = strconv.ParseFloat(parsedSimArgs[1], 64)
 		}
 	}
-	bodies := createSunAndAddToList([]body.SimBody{}, body.NextId(), 100000, 100000, 001000, 1, 500, 4E5)
+	bodies := createSunAndAddToList([]*body.Body{}, body.NextId(), 100000, 100000, 001000, 1, 500, 4E5)
 
 	// planet
 	planet := body.NewBody(body.NextId(), 0, 0, 0, 12, 12, 12, 9E30, 145, globals.Elastic,
 		globals.Red, 0, 0, false, "", "", false)
-	bodies = append(bodies, &planet)
+	bodies = append(bodies, planet)
 
 	// moons
 	m1 := body.NewBody(body.NextId(), 50, 0, -420, -980000000, 12, -500000000, 9E20, 35, globals.Subsume,
 		globals.Lightgray, 0, 0, false, "", "", false)
-	bodies = append(bodies, &m1)
+	bodies = append(bodies, m1)
 
 	m2 := body.NewBody(body.NextId(), -400, 50, 405, 530000000, -313000000, 520000000, 9E19, 5, globals.Elastic,
 		globals.Blue, 0, 0, false, "", "", false)
-	bodies = append(bodies, &m2)
+	bodies = append(bodies, m2)
 
 	m3 := body.NewBody(body.NextId(), 70, 0, -520, -880000000, -10000, -300000000 , 11E22, 15, globals.Elastic,
 		globals.Green, 0, 0, false, "", "", false)
-	bodies = append(bodies, &m3)
+	bodies = append(bodies, m3)
 
 	// impactor
 	im := body.NewBody(body.NextId(), 900, -900, 900, -450000000, 723000000, -350000000, 9E12, 10, globals.Fragment,
 		globals.Yellow, fragFactor, fragStep, false, "", "", false)
-	bodies = append(bodies, &im)
+	bodies = append(bodies, im)
 
-	simWorker := func(sbc body.SimBodyCollection) {
+	simWorker := func(bc *body.BodyCollection) {
 		for {
-			if sbc.Count() > 6 {
-				sbc.ModBody(planet.Id(), "", "",  []string{"collision=subsume"})
+			if bc.Count() > 6 {
+				bc.ModBody(planet.Id, "", "",  []string{"collision=subsume"})
 				return
 			}
 			time.Sleep(time.Millisecond * 1000)
@@ -372,25 +377,28 @@ func (g generator) Sim5(bodyCount int, collisionBehavior globals.CollisionBehavi
 // Validate collision resolution using the deferred approach
 //
 func (g generator) SimTest(bodyCount int, collisionBehavior globals.CollisionBehavior, defaultBodyColor globals.BodyColor,
-	simArgs string) ([]body.SimBody, SimWorker) {
-	bodies := createSunAndAddToList([]body.SimBody{}, body.NextId(), 20000, 20000, 20000, 1, 500, 10000)
+	simArgs string) ([]*body.Body, SimWorker) {
+	_ = bodyCount
+	_ = defaultBodyColor
+	_ = simArgs
+	bodies := createSunAndAddToList([]*body.Body{}, body.NextId(), 20000, 20000, 20000, 1, 500, 10000)
 
 	// 0,0,0 stationary
 	m1 := body.NewBody(body.NextId(), 0, 0, 0, 0, 0, 0, 9E29, 60, collisionBehavior,
 		globals.Red, 0, 0, false, "", "", false)
-	bodies = append(bodies, &m1)
+	bodies = append(bodies, m1)
 
 	// left heading down right
 	m2 := body.NewBody(body.NextId(), -350, 350, 0, 530000000, -500000000, 0, 9E29, 60,
 		collisionBehavior, globals.Green, 0, 0, false, "", "",
 		false)
-	bodies = append(bodies, &m2)
+	bodies = append(bodies, m2)
 
 	// right heading down left
 	m3 := body.NewBody(body.NextId(), 350, 350, 0, -530000000, -500000000, 0, 9E29, 60,
 		collisionBehavior, globals.Yellow, 0, 0, false, "", "",
 		false)
-	bodies = append(bodies, &m3)
+	bodies = append(bodies, m3)
 
 	return bodies, nil
 }
@@ -410,9 +418,9 @@ func (g generator) SimTest(bodyCount int, collisionBehavior globals.CollisionBeh
 // returns:
 //   the passed array with the sun appended
 //
-func createSunAndAddToList(bodies []body.SimBody, id int, x, y, z, mass, radius float64, intensity float64) []body.SimBody {
+func createSunAndAddToList(bodies []*body.Body, id int, x, y, z, mass, radius float64, intensity float64) []*body.Body {
 	b := body.NewBody(id, x, y, z, -3, -3, -5, mass, radius, globals.Subsume,
 		globals.White, 0, 0, false, "the-sun", "", true)
 	b.SetSun(intensity)
-	return append(bodies, &b)
+	return append(bodies, b)
 }
