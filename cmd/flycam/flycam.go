@@ -42,7 +42,7 @@ const (
 	DefaultEvId          = 1234567
 	EngageDisengageEvId  = 2345678
 	NoLastMousePos       = -1
-	FrustrumFar          = 10000
+	FrustrumFar          = 100000
 	DefaultYaw           = -90.0
 	DefaultPitch         = 0.0
 	DefaultMovementSpeed = 1

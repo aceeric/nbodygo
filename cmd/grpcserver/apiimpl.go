@@ -69,7 +69,7 @@ func (s *nbodyServiceServer) RemoveBodies(_ context.Context, in *nbodygrpc.ItemC
 }
 
 func (s *nbodyServiceServer) AddBody(_ context.Context, in *nbodygrpc.BodyDescription) (*nbodygrpc.ResultCode, error) {
-	mass := float64(in.Mass)
+	mass := float64(in.Mass) // todo remove redundant type conv
 	x := float64(in.X)
 	y := float64(in.Y)
 	z := float64(in.Z)
@@ -78,15 +78,16 @@ func (s *nbodyServiceServer) AddBody(_ context.Context, in *nbodygrpc.BodyDescri
 	vz := float64(in.Vz)
 	radius := float64(in.Radius)
 	isSun := in.IsSun
+	intensity := in.Intensity
 	fragFactor := float64(in.FragFactor)
 	fragStep := float64(in.FragStep)
 	withTelemetry := in.WithTelemetry
 	name := in.Name
 	class := in.Class
 	pinned := in.Pinned
-	behavior := grpcCbToSimCb(in.CollisionBehavior)
-	bodyColor := grpcColorToSimColor(in.BodyColor)
-	id := s.callbacks.AddBody(mass, x, y, z, vx, vy, vz, radius, isSun, behavior, bodyColor,
+	behavior := GrpcCbToSimCb(in.CollisionBehavior)
+	bodyColor := GrpcColorToSimColor(in.BodyColor)
+	id := s.callbacks.AddBody(mass, x, y, z, vx, vy, vz, radius, isSun, intensity, behavior, bodyColor,
 		fragFactor, fragStep, withTelemetry, name, class, pinned)
 	return &nbodygrpc.ResultCode{
 		ResultCode: nbodygrpc.ResultCode_OK,
@@ -120,7 +121,7 @@ func (s *nbodyServiceServer) GetBody(_ context.Context, in *nbodygrpc.ModBodyMes
 		Mass:              b.Mass,
 		Radius:            b.Radius,
 		IsSun:             b.IsSun,
-		CollisionBehavior: simCbToGrpcCb(b.CollisionBehavior),
+		CollisionBehavior: SimCbToGrpcCb(b.CollisionBehavior),
 		BodyColor:         SimColorToGrpcColor(b.BodyColor),
 		FragFactor:        b.FragFactor,
 		FragStep:          b.FragStep,
@@ -132,7 +133,7 @@ func (s *nbodyServiceServer) GetBody(_ context.Context, in *nbodygrpc.ModBodyMes
 	return &bd, nil
 }
 
-func grpcColorToSimColor(color nbodygrpc.BodyColorEnum) globals.BodyColor {
+func GrpcColorToSimColor(color nbodygrpc.BodyColorEnum) globals.BodyColor {
 	switch color {
 	case nbodygrpc.BodyColorEnum_RANDOM:
 		return globals.Random
@@ -208,7 +209,7 @@ func SimColorToGrpcColor(color globals.BodyColor) nbodygrpc.BodyColorEnum {
 	}
 }
 
-func grpcCbToSimCb(behavior nbodygrpc.CollisionBehaviorEnum) globals.CollisionBehavior {
+func GrpcCbToSimCb(behavior nbodygrpc.CollisionBehaviorEnum) globals.CollisionBehavior {
 	switch behavior {
 	case nbodygrpc.CollisionBehaviorEnum_NONE:
 		return globals.None
@@ -223,7 +224,7 @@ func grpcCbToSimCb(behavior nbodygrpc.CollisionBehaviorEnum) globals.CollisionBe
 	}
 }
 
-func simCbToGrpcCb(behavior globals.CollisionBehavior) nbodygrpc.CollisionBehaviorEnum {
+func SimCbToGrpcCb(behavior globals.CollisionBehavior) nbodygrpc.CollisionBehaviorEnum {
 	switch behavior {
 	case globals.None:
 		return nbodygrpc.CollisionBehaviorEnum_NONE

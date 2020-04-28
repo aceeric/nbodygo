@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"log"
 	"nbodygo/cmd/grpcsimcb"
 	"nbodygo/cmd/nbodygrpc"
 	"net"
-	"strconv"
 )
 
 const (
@@ -26,13 +26,13 @@ func newServer(callbacks grpcsimcb.GrpcSimCallbacks) nbodygrpc.NBodyServiceServe
 }
 
 func Start(callbacks grpcsimcb.GrpcSimCallbacks) {
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
 	grpcServer = grpc.NewServer()
 	reflection.Register(grpcServer)
 	nbodygrpc.RegisterNBodyServiceServer(grpcServer, newServer(callbacks))
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
-	if err != nil {
-		panic("Failed to open port " + strconv.Itoa(port))
-	}
 	go grpcServer.Serve(lis)
 }
 

@@ -307,15 +307,8 @@ func (r *ComputationRunner) runOneComputation() {
 		r.submits++
 		submits++
 	}
-	if submits != 0 {
-		r.submitMillis += time.Now().Sub(start).Milliseconds()
-		start = time.Now()
-		r.wp.wait()
-		r.waits++
-		r.waitMillis += time.Now().Sub(start).Milliseconds()
-	}
 	/*
-		// this initial approach submits to the work pool one body at a time, which
+		// initial approach submits to the work pool one body at a time, which
 		// is how the Java app does it
 		r.bc.IterateOnce(func(b *body.Body) {
 			if b.Exists {
@@ -324,14 +317,16 @@ func (r *ComputationRunner) runOneComputation() {
 				submits++
 			}
 		})
-		if submits != 0 {
-			r.submitMillis += time.Now().Sub(start).Milliseconds()
-			start = time.Now()
-			r.wp.wait()
-			r.waits++
-			r.waitMillis += time.Now().Sub(start).Milliseconds()
-		}
 	*/
+	if submits != 0 {
+		r.submitMillis += time.Now().Sub(start).Milliseconds()
+		start = time.Now()
+		r.wp.wait()
+		r.waits++
+		r.waitMillis += time.Now().Sub(start).Milliseconds()
+	} else {
+		time.Sleep(time.Millisecond * 5) // no bodies
+	}
 	r.bc.ProcessMods()
 	r.bc.IterateOnce(func(b *body.Body) {
 		ri := b.Update(r.timeScaling, r.R)

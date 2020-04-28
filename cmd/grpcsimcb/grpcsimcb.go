@@ -35,7 +35,7 @@ type GrpcSimCallbacks struct {
 	RemoveBodies              func(int)
 	BodyCount                 func() int
 	AddBody                   func(float64, float64, float64, float64, float64, float64, float64, float64,
-		bool, globals.CollisionBehavior, globals.BodyColor, float64, float64, bool, string, string, bool) int
+		bool, float64, globals.CollisionBehavior, globals.BodyColor, float64, float64, bool, string, string, bool) int
 	ModBody func(int, string, string, []string) ModBodyResult
 	GetBody func(int, string) interface{}
 }

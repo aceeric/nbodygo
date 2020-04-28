@@ -2,14 +2,10 @@
 
 A project to learn Go. A port (in progress) of https://github.com/aceeric/nbodyjava
  
-Rough WIP. Many many TODOs...
+WIP. Many TODOs...
 
 sudo apt install xorg-dev libgl1-mesa-dev libopenal1 libopenal-dev \
  libvorbis0a libvorbis-dev libvorbisfile3
-
-bazel run //:gazelle -- update-repos -from_file=go.mod
-
-bazel build not working
 
 but this works:
 go build -o $(pwd) ./...
@@ -17,9 +13,9 @@ go build -o $(pwd) ./cmd/server
 
 TODO
 
-- gRPC client
+- enum string to val consistency
 - instrumentation
-- Bazel or Make
+- go with Make for now
 - enums
 - logging
 - tests
@@ -27,7 +23,9 @@ TODO
 - build documentation (esp. steps for G3N)
 - readme cleanup
 - go docs
+
 grpc
+
 https://grpc.io/docs/quickstart/go/
 ```
 $ export GO111MODULE=on

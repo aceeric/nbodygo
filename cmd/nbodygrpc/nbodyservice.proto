@@ -62,14 +62,15 @@ message BodyDescription {
   double mass = 8;
   double radius = 9;
   bool is_sun = 10;
-  CollisionBehaviorEnum collision_behavior = 11;
-  BodyColorEnum body_color = 12;
-  double frag_factor = 13;
-  double frag_step = 14;
-  bool with_telemetry = 15;
-  string name = 16;
-  string class = 17;
-  bool pinned = 18;
+  double intensity = 11;
+  CollisionBehaviorEnum collision_behavior = 12;
+  BodyColorEnum body_color = 13;
+  double frag_factor = 14;
+  double frag_step = 15;
+  bool with_telemetry = 16;
+  string name = 17;
+  string class = 18;
+  bool pinned = 19;
 }
 
 // Modify body properties. To modify by ID, pass the ID and omit name and class:

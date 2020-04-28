@@ -47,7 +47,7 @@ func newGrpcSimCb(bc *body.BodyCollection, crunner *runner.ComputationRunner,
 			return bc.Count()
 		},
 		AddBody: func(mass, x, y, z, vx, vy, vz, radius float64,
-			isSun bool, behavior globals.CollisionBehavior, bodyColor globals.BodyColor,
+			isSun bool, intensity float64, behavior globals.CollisionBehavior, bodyColor globals.BodyColor,
 			fragFactor, fragStep float64,
 			withTelemetry bool, name, class string,
 			pinned bool) int {
@@ -55,7 +55,7 @@ func newGrpcSimCb(bc *body.BodyCollection, crunner *runner.ComputationRunner,
 			b := body.NewBody(id, x, y, z, vx, vy, vz, mass, radius, behavior, bodyColor, fragFactor, fragStep,
 				withTelemetry, name, class, pinned)
 			if isSun {
-				b.SetSun(100) // todo mod gRPC to support intensity
+				b.SetSun(intensity)
 			}
 			bc.Enqueue(body.NewAdd(b))
 			return id
