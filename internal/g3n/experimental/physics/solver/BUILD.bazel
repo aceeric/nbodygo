@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "gs.go",
+        "solver.go",
+    ],
+    importpath = "nbodygo/internal/g3n/experimental/physics/solver",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/pkg/experimental/physics/equation:go_default_library",
+        "//internal/pkg/math32:go_default_library",
+    ],
+)

@@ -1,0 +1,20 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "RenderInfo.go",
+        "dispatcher.go",
+        "doc.go",
+        "logger.go",
+        "node.go",
+        "timer.go",
+    ],
+    importpath = "nbodygo/internal/g3n/core",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/pkg/gls:go_default_library",
+        "//internal/pkg/math32:go_default_library",
+        "//internal/pkg/util/logger:go_default_library",
+    ],
+)

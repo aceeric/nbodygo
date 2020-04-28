@@ -2,7 +2,7 @@ package util
 
 import (
 	"math/rand"
-	"nbodygo/internal/pkg/math32"
+	"nbodygo/internal/g3n/math32"
 	"time"
 )
 

@@ -1,7 +1,7 @@
 package globals
 
 import (
-	"nbodygo/internal/pkg/math32"
+	"nbodygo/internal/g3n/math32"
 	"strconv"
 	"strings"
 )

@@ -2,7 +2,7 @@ package sim
 
 import (
 	"nbodygo/cmd/body"
-	"nbodygo/internal/pkg/math32"
+	"nbodygo/internal/g3n/math32"
 )
 
 //

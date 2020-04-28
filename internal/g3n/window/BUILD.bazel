@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "glfw.go",
+        "keystate.go",
+        "window.go",
+    ],
+    importpath = "nbodygo/internal/g3n/window",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/pkg/core:go_default_library",
+        "//internal/pkg/gls:go_default_library",
+        "//internal/pkg/gui/assets:go_default_library",
+        "//internal/pkg/util/logger:go_default_library",
+        "@my_glfw//:glfw",
+    ],
+)

@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "animation.go",
+        "channel.go",
+    ],
+    importpath = "nbodygo/internal/g3n/animation",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/pkg/core:go_default_library",
+        "//internal/pkg/geometry:go_default_library",
+        "//internal/pkg/math32:go_default_library",
+        "//internal/pkg/util/logger:go_default_library",
+    ],
+)

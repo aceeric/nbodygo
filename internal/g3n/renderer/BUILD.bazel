@@ -1,0 +1,24 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "renderer.go",
+        "shaman.go",
+        "version-desktop.go",
+    ],
+    importpath = "nbodygo/internal/g3n/renderer",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/pkg/camera:go_default_library",
+        "//internal/pkg/core:go_default_library",
+        "//internal/pkg/gls:go_default_library",
+        "//internal/pkg/graphic:go_default_library",
+        "//internal/pkg/gui:go_default_library",
+        "//internal/pkg/light:go_default_library",
+        "//internal/pkg/material:go_default_library",
+        "//internal/pkg/math32:go_default_library",
+        "//internal/pkg/renderer/shaders:go_default_library",
+        "//internal/pkg/util/logger:go_default_library",
+    ],
+)

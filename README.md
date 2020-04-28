@@ -18,7 +18,6 @@ go build -o $(pwd) ./cmd/server
 TODO
 
 - gRPC client
-- g3n directory structure (pkg > g3ngola?)
 - instrumentation
 - Bazel or Make
 - enums

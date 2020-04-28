@@ -1,0 +1,29 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "array.go",
+        "box2.go",
+        "box3.go",
+        "color.go",
+        "color4.go",
+        "curves.go",
+        "frustum.go",
+        "line3.go",
+        "math.go",
+        "matrix3.go",
+        "matrix4.go",
+        "plane.go",
+        "quaternion.go",
+        "ray.go",
+        "sphere.go",
+        "spline.go",
+        "triangle.go",
+        "vector2.go",
+        "vector3.go",
+        "vector4.go",
+    ],
+    importpath = "nbodygo/internal/g3n/math32",
+    visibility = ["//:__subpackages__"],
+)

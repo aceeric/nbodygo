@@ -2,10 +2,10 @@ package flycam
 
 import (
 	"github.com/go-gl/glfw/v3.3/glfw"
-	"nbodygo/internal/pkg/camera"
-	"nbodygo/internal/pkg/core"
-	"nbodygo/internal/pkg/math32"
-	"nbodygo/internal/pkg/window"
+	"nbodygo/internal/g3n/camera"
+	"nbodygo/internal/g3n/core"
+	"nbodygo/internal/g3n/math32"
+	"nbodygo/internal/g3n/window"
 )
 
 //

@@ -5,7 +5,7 @@ import (
 	"nbodygo/cmd/body"
 	"nbodygo/cmd/globals"
 	"nbodygo/cmd/sim"
-	"nbodygo/internal/pkg/math32"
+	"nbodygo/internal/g3n/math32"
 	"os"
 	"regexp"
 	"strconv"

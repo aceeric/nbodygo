@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "atlas.go",
+        "doc.go",
+        "font.go",
+        "str.go",
+    ],
+    importpath = "nbodygo/internal/g3n/text",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/pkg/math32:go_default_library",
+        "@com_github_golang_freetype//truetype:go_default_library",
+        "@org_golang_x_image//font:go_default_library",
+        "@org_golang_x_image//math/fixed:go_default_library",
+    ],
+)

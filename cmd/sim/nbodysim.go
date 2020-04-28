@@ -5,7 +5,7 @@ import (
 	"nbodygo/cmd/g3napp"
 	"nbodygo/cmd/grpcserver"
 	"nbodygo/cmd/runner"
-	"nbodygo/internal/pkg/math32"
+	"nbodygo/internal/g3n/math32"
 	"runtime"
 	"time"
 )
