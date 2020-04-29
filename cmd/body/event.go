@@ -14,6 +14,7 @@ package body
 
 //
 // Enum that defines the events that are handled
+// todo enum consistency (iota?) and standards
 //
 type EventType int
 

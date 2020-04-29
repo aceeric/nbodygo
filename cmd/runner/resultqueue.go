@@ -2,6 +2,7 @@ package runner
 
 import (
 	"nbodygo/cmd/body"
+	"nbodygo/cmd/instrumentation"
 )
 
 //
@@ -13,7 +14,9 @@ import (
 // by writing its index into the selector channel. So the active queue is either at index zero or
 // one. This approach also synchronizes calls into the queue so the resize can be done in a
 // thread-safe manner. The design only supports one thread adding queues into the holder - with
-// no limit on consumers.
+// no limit on consumers. Note: this would be much simpler to implement if Go channels were re-sizable
+// because then the holder could simply be a channel. But - Go channels are not resizable, at least
+// as of 1.14
 //
 
 //
@@ -74,6 +77,7 @@ func (rqh *ResultQueueHolder) Add(queue *ResultQueue) {
 // resizable arg
 //
 func NewResultQueueHolder(maxQueues int, resizable bool) *ResultQueueHolder {
+	instrumentation.MaxQueues.Set(float64(maxQueues))
 	rqh := ResultQueueHolder{
 		selector: make(chan int, 1),
 		queues: [2]struct {
@@ -88,7 +92,9 @@ func NewResultQueueHolder(maxQueues int, resizable bool) *ResultQueueHolder {
 		queueNum:  0,
 		resizable: resizable,
 	}
-	rqh.selector <- 0
+	if resizable {
+		rqh.selector <- 0
+	}
 	return &rqh
 }
 
@@ -99,26 +105,28 @@ func NewResultQueueHolder(maxQueues int, resizable bool) *ResultQueueHolder {
 // capacity, returns nil and false
 //
 func (rqh *ResultQueueHolder) NewResultQueue() (*ResultQueue, bool) {
+	var curLen int
 	if !rqh.resizable {
-		if len(rqh.queues[0].ch) >= rqh.queues[0].maxQueues {
+		curLen = len(rqh.queues[0].ch)
+		if curLen >= rqh.queues[0].maxQueues {
 			return nil, false
 		}
 	} else {
 		q := <-rqh.selector
-		l := len(rqh.queues[q].ch)
+		curLen = len(rqh.queues[q].ch)
 		max := rqh.queues[q].maxQueues
 		rqh.selector <- q
-		if l >= max {
+		if curLen >= max {
 			return nil, false
 		}
 	}
 	queueNum := rqh.queueNum
 	rqh.queueNum++
+	instrumentation.CurQueues.Set(float64(curLen))
 	return &ResultQueue{
 		queueNum: queueNum,
 		queue:    make([]*body.Renderable, 0),
 	}, true
-
 }
 
 //
@@ -169,9 +177,9 @@ func (rqh *ResultQueueHolder) MaxQueues() (int, int) {
 // lost without causing jumpiness in the rendering. So the resize functionality leaves extra space
 // in the resized queue to accommodate this requirement. The use case is:
 //
-// computation runner asks for a new queue from the holder - and gets one - so there is capacity
-// resize event concurrently resizes the queue down, while leaving extra space as described
-// runner adds the queue to the holder - the add succeeds because of the extra space
+// 1 - computation runner asks for a new queue from the holder - and gets one - so there is capacity
+// 2 - resize event concurrently resizes the queue down, while leaving extra space as described
+// 3 - runner adds the queue to the holder - the add succeeds because of the extra space
 //
 // This only works because there is only one thread adding to the queue. It wouldn't work with more
 // than one thread adding. But the design of this holder is not intended to be general purpose - it is
@@ -216,5 +224,6 @@ func (rqh *ResultQueueHolder) Resize(maxQueues int) bool {
 		ch:        nil,
 		maxQueues: 0,
 	}
+	instrumentation.MaxQueues.Set(float64(maxQueues))
 	return true
 }

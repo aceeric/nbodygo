@@ -7,6 +7,7 @@ package body
 import (
 	"math"
 	"nbodygo/cmd/globals"
+	"nbodygo/cmd/instrumentation"
 	"nbodygo/cmd/util"
 	"strings"
 	"sync"
@@ -164,7 +165,7 @@ func (b *Body) Compute(bc *BodyCollection) {
 			return
 		}
 		if b != otherBody && otherBody.Exists && !otherBody.fragmenting {
-			// todo metrics
+			instrumentation.BodyComputations.Inc()
 			collided, dist := b.calcForceFrom(otherBody)
 			if collided {
 				if (b.CollisionBehavior == globals.Elastic || b.CollisionBehavior == globals.Fragment) &&

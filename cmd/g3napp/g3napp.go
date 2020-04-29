@@ -1,10 +1,12 @@
 package g3napp
 
 import (
+	"github.com/prometheus/client_golang/prometheus"
 	"math/rand"
 	"nbodygo/cmd/body"
 	"nbodygo/cmd/flycam"
 	"nbodygo/cmd/globals"
+	"nbodygo/cmd/instrumentation"
 	"nbodygo/cmd/runner"
 	"nbodygo/internal/g3n/app"
 	"nbodygo/internal/g3n/core"
@@ -39,6 +41,9 @@ type G3nApp struct {
 
 // singleton
 var g3nApp G3nApp
+
+var metricRenderCount = instrumentation.ComputationCount.With(prometheus.Labels{"thread": "renderer"})
+var metricBodyCount = instrumentation.BodyCount.With(prometheus.Labels{"thread": "renderer"})
 
 //
 // Starts the G3N render loop using the passed params
@@ -98,6 +103,7 @@ func renderLoop(renderer *renderer.Renderer, _ time.Duration) {
 func updateSim() {
 	rq, ok := g3nApp.holder.Next()
 	if !ok {
+		instrumentation.NoRenderQueues.Inc()
 		return
 	}
 	renderedBodies := 0
@@ -140,6 +146,8 @@ func updateSim() {
 			renderedBodies++
 		}
 	}
+	metricRenderCount.Inc()
+	metricBodyCount.Set(float64(len(g3nApp.meshes)))
 }
 
 //

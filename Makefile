@@ -32,8 +32,8 @@ define HELPTEXT
 
 This Make file builds bin/client and bin/server relative to the project root. Options are a) run from within
 project root, or, b) use the -C make arg if running from outside project root. This Make file assumes the
-necessary dependencies (go, protoc) are already installed. The Make file doesn't do any dependency checking,
-it just runs the build each time.
+necessary dependencies (go, protoc, protoc go plugin) are already installed. The Make file doesn't do any
+dependency checking, it just runs the build each time.
 
 Targets:
 
@@ -45,7 +45,6 @@ server   Runs go build on the cmd/server directory and creates executable bin/se
 help     Prints this help
 print-%  Prints the value of a Make variable. E.g. 'make print-ROOT'
 
-The Make file runs silent unless you provide a VERBOSE arg or variable. E.g.:
+The Make file runs silent unless you provide a VERBOSE arg or variable. E.g.: make VERBOSE=1
 
-make VERBOSE=1
 endef

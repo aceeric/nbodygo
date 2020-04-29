@@ -4,6 +4,7 @@ import (
 	"nbodygo/cmd/body"
 	"nbodygo/cmd/g3napp"
 	"nbodygo/cmd/grpcserver"
+	"nbodygo/cmd/instrumentation"
 	"nbodygo/cmd/runner"
 	"nbodygo/internal/g3n/math32"
 	"runtime"
@@ -73,7 +74,7 @@ type NBodySim struct {
 // * Cleans up
 //
 func (sim NBodySim) Run() {
-	// todo start instrumentation
+	instrumentation.Start()
 	bc := body.NewSimBodyCollection(sim.bodies)
 	rqh := runner.NewResultQueueHolder(defaultMaxResultQueues, true)
 	simDone := make(chan bool) // to shut down the G3N engine
@@ -88,7 +89,7 @@ func (sim NBodySim) Run() {
 	waitForSimEnd(sim.render, rqh, simDone, sim.runMillis)
 	grpcserver.Stop()
 	crunner.Stop()
-	// todo stop instrumentation
+	instrumentation.Stop()
 	crunner.PrintStats()
 }
 

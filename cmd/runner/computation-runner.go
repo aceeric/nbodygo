@@ -2,10 +2,15 @@ package runner
 
 import (
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"nbodygo/cmd/body"
+	"nbodygo/cmd/instrumentation"
 	"runtime"
 	"time"
 )
+
+var metricRunnerCount = instrumentation.ComputationCount.With(prometheus.Labels{"thread": "runner"})
+var metricBodyCount = instrumentation.BodyCount.With(prometheus.Labels{"thread": "runner"})
 
 //
 // The computation runner runs the n-body computation perpetually in a loop until signaled to stop. The
@@ -84,6 +89,7 @@ func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder 
 		RChan:             make(chan float64, 1),
 		delChan:           make(chan int, 1),
 	}
+	instrumentation.ComputationWorkers.Set(float64(workerCnt))
 	return &r
 }
 
@@ -122,6 +128,7 @@ func (r *ComputationRunner) Stop() {
 func (r *ComputationRunner) SetWorkers(workerCnt int) {
 	r.workerCnt = workerCnt
 	r.wp.SetPoolSize(workerCnt)
+	instrumentation.ComputationWorkers.Set(float64(workerCnt))
 }
 
 //
@@ -284,10 +291,14 @@ func (r *ComputationRunner) runOneComputation() {
 	r.bc.HandleModBody()
 	rq, ok := r.resultQueueHolder.NewResultQueue()
 	if !ok {
+		instrumentation.NoComputationQueues.Inc()
+		time.Sleep(time.Millisecond * 5)
 		return
 	}
 	start := time.Now()
 	submits := 0
+
+	metricBodyCount.Set(float64(len(r.bc.GetArray())))
 
 	// slightly better performance this way - give each worker a slice to work on
 	workers := len(r.wp.workers)
@@ -336,4 +347,5 @@ func (r *ComputationRunner) runOneComputation() {
 	r.bc.Cycle(r.R)
 	r.computations++
 	r.goroutines += runtime.NumGoroutine()
+	metricRunnerCount.Inc()
 }
