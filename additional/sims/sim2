@@ -17,13 +17,13 @@ bin/client add-body 0 0 0 0 0 0 52E30 153 is-sun intensity=1E5 collision=subsume
 
 Then, paste these in as a group:
 
-bin/client add-bodies 400 400 400 -230000000  2143000000 -1150000000 9E26 4 color=RED qty=400 posrand=50
+bin/client add-bodies 400 400 400 -190000000 2010000000 -630000000 9E26 4 color=RED      qty=400 posrand=50
 sleep 20
-bin/client add-bodies 400 400 400 -230000000  2143000000 -1150000000 9E26 4 color=GREEN qty=400 posrand=50
+bin/client add-bodies 400 400 400 -190000000 2010000000 -630000000 9E26 4 color=GREEN    qty=400 posrand=50
 sleep 20
-bin/client add-bodies 400 400 400 -230000000  2143000000 -1150000000 9E26 4 color=LIGHTGRAY qty=400 posrand=50
+bin/client add-bodies 400 400 400 -190000000 2010000000 -630000000 9E26 4 color=ORANGE   qty=400 posrand=50
 sleep 20
-bin/client add-bodies 400 400 400 -230000000  2143000000 -1150000000 9E26 4 color=YELLOW qty=400 posrand=50
+bin/client add-bodies 400 400 400 -190000000 2010000000 -630000000 9E26 4 color=DARKGRAY qty=400 posrand=50
 
 Click the sim window and press F12 to re-attach the mouse and keyboard to the sim window. Use the navigation
 keys to navigate through the sim.
