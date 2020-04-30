@@ -1,0 +1,20 @@
+This sim creates small low-gravity sun far removed from 0,0,0 just to create a light
+source. It then creates two bodies moving directly towards each other. One body is configured
+to fragment on impact and the other is not. The bodies impact, and one fragments.
+
+Assumes that you're at a directory with the server executable at: ./bin/server and the client
+is at ./bin/client
+
+First, start an empty sim:
+bin/server --sim-name=empty &
+
+Press F12 to disengage the mouse and keyboard from the sim window. Then tab back to the console and
+paste these commands in:
+
+bin/client add-body 100000 100000 100000 0 0 0 1 500 is-sun intensity=3e5 pinned collision=subsume
+bin/client add-body  600 0 -600 -550000000 0 550000000 9E12 30 color=yellow \
+ collision=fragment frag-factor=.5 frag-step=400 &
+bin/client add-body -600 0  600  550000000 0 -550000000 9E27 10 color=red &
+
+Click the sim window and press F12 to re-attach the mouse and keyboard to the sim window. Use the navigation
+keys to navigate through the sim.

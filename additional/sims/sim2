@@ -1,0 +1,30 @@
+This sim creates a stationary sun, then creates four clusters of bodies - each
+cluster orbiting the sun. Each of the clusters has enough gravity such that they
+aggregate loosely as a cluster while they orbit the sun. So each cluster exhibits some
+characteristics of a single body even though they are loose collections of individual
+bodies. The clusters interact with each other and the sun as they orbit.
+
+Assumes that you're at a directory with the server executable at: ./bin/server and the client
+is at ./bin/client
+
+First, start an empty sim:
+bin/server --sim-name=empty &
+
+Press F12 to disengage the mouse and keyboard from the sim window. Then tab back to the console and
+paste this command in to create a sun:
+
+bin/client add-body 0 0 0 0 0 0 52E30 153 is-sun intensity=1E5 collision=subsume pinned
+
+Then, paste these in as a group:
+
+bin/client add-bodies 400 400 400 -230000000  2143000000 -1150000000 9E26 4 color=RED qty=400 posrand=50
+sleep 20
+bin/client add-bodies 400 400 400 -230000000  2143000000 -1150000000 9E26 4 color=GREEN qty=400 posrand=50
+sleep 20
+bin/client add-bodies 400 400 400 -230000000  2143000000 -1150000000 9E26 4 color=LIGHTGRAY qty=400 posrand=50
+sleep 20
+bin/client add-bodies 400 400 400 -230000000  2143000000 -1150000000 9E26 4 color=YELLOW qty=400 posrand=50
+
+Click the sim window and press F12 to re-attach the mouse and keyboard to the sim window. Use the navigation
+keys to navigate through the sim.
+

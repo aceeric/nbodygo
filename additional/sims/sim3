@@ -1,0 +1,19 @@
+This sim creates small low-gravity sun far removed from 0,0,0 just to create a light
+source. It then creates two clusters of objects moving directly towards each other. The
+The clusters collide.
+
+Assumes that you're at a directory with the server executable at: ./bin/server and the client
+is at ./bin/client
+
+First, start an empty sim:
+bin/server --sim-name=empty &
+
+Press F12 to disengage the mouse and keyboard from the sim window. Then tab back to the console and
+paste these three commands in:
+
+bin/client add-body 100000 100000 100000 0 0 0 1 500 is-sun intensity=1E6 pinned collision=subsume
+bin/client add-bodies  600 0 -600 -450000000  0  450000000 9E26 3 color=orange qty=600 posrand=50 &
+bin/client add-bodies -600 0  600  450000000  0 -450000000 9E26 3 color=blue   qty=600 posrand=50 &
+
+Click the sim window and press F12 to re-attach the mouse and keyboard to the sim window. Use the navigation
+keys to navigate through the sim.

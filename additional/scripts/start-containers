@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+#
+# This script supports running the sim with instrumentation enabled to observe some of the key simulation
+# performance-related metrics in a Grafana dashboard.
+#
+# Starts a Docker container to run Prometheus, providing it a configuration to scrape the n-body
+# simulation. Then starts a Grafana container, and provisions: 1) a data source referencing
+# the Prometheus Docker instance, and 2) a Dashboard to watch a set of n-body metrics
+# scraped from Prometheus. Once both containers are running, you can access the Grafanaa dashboard
+# using:
+#
+# http://localhost:3000
+#
+# You may have to turn off tracking protection in your browser to make Grafana happy. Also: you have
+# run the sim with the NBODYPROM environment variable set, to enable collecting and exposing metrics
+# to Prometheus. Example:
+#
+# $ NBODYPROM= bin/server
+#
+# When you are done, just:
+#
+# $ docker stop prometheus grafana
+#
+
+# You will need to set the 'RESROOT' variable below for your system, to match where you git cloned to
+RESROOT="$HOME/go/nbodygo"
+PROMROOT="$RESROOT/additional/prometheus"
+GRAFROOT="$RESROOT/additional/grafana"
+
+# Prometheus
+
+docker run -d --rm \
+ -p 9090:9090 \
+ --name=prometheus \
+ --net="host" \
+ --mount "type=bind,source=$PROMROOT/prometheus.yml,target=/etc/prometheus/prometheus.yml" \
+ prom/prometheus
+
+# Grafana
+
+docker run -d --rm \
+ -p 3000:3000 \
+ --name=grafana \
+ --net="host" \
+ -e "GF_SECURITY_ADMIN_USER=root" \
+ -e "GF_SECURITY_ADMIN_PASSWORD=secret" \
+ --mount "type=bind,source=$GRAFROOT/datasource.yaml,target=/etc/grafana/provisioning/datasources/prometheus.yml" \
+ --mount "type=bind,source=$GRAFROOT/dashboard.yaml,target=/etc/grafana/provisioning/dashboards/dashboard.yaml" \
+ --mount "type=bind,source=$GRAFROOT/nbody-sim-dash.json,target=/var/lib/grafana/dashboards/nbody-sim-dash.json" \
+ grafana/grafana

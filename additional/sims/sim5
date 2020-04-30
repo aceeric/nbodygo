@@ -1,0 +1,39 @@
+This sim creates a sun, then streams in bodies in concentric orbits, with each
+orbit consisting of a different color.
+
+Assumes that you're at a directory with the server executable at: ./bin/server and the client
+is at ./bin/client
+
+First, start an empty sim:
+bin/server --sim-name=empty &
+
+Or, if the sim is already running you can clear it this way (-1 removes everything, even pinned bodies):
+bin/client remove-bodies -1
+
+Press F12 to disengage the mouse and keyboard from the sim window. Then tab back to the console and
+paste these commands in. First, add a sun:
+
+bin/client add-body 0 0 0 0 0 0 52E29 23 is-sun intensity=800 collision=subsume pinned
+
+Then, paste all these commands in together to stream the bodies in:
+
+bin/client add-bodies 160 160 160 0 0 -670000000  9E1 2 color=yellow qty=15 delay=.8 class=happy &
+bin/client add-bodies 200 200 200 0 0 -850000000  9E1 2 color=red    qty=25 delay=1  class=sad &
+bin/client add-bodies 230 230 230 0 0 -960000000  9E1 2 color=blue   qty=70 delay=.7 class=cheerful &
+bin/client add-bodies 280 280 280 0 0 -995000000  9E1 2 color=green  qty=62 delay=2  class=glum &
+bin/client add-bodies 310 310 310 0 0 -1000500000 9E1 2 color=orange qty=77 delay=3  class=goofy &
+
+Click the sim window and press F12 to re-attach the mouse and keyboard to the sim window. Use the navigation
+keys to navigate through the sim.
+
+The 'class' element is useful for modifying groups of bodies. Example:
+
+bin/client mod-body class=sad radius=5
+
+Or to remove classes of bodies from the simulation:
+
+bin/client mod-body class=glum exists=false
+
+Add a second sun, to create a binary star system:
+
+bin/client add-body 600 600 -600 312321000 -268000000 -645345345 25E28 38 is-sun intensity=100 pinned collision=subsume
