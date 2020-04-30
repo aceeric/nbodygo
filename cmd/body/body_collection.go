@@ -263,8 +263,8 @@ func (bc *BodyCollection) countAdds() int {
 
 //
 // Called by computation runner to prepare the body collection for another compute cycle. Removes refs
-// to bodies that have been set not to exist, and resolves collisions and fragmentation which have to be
-// done in a single thread to avoid race conditions.
+// to bodies that have been set not to exist, and adds bodies that have been enqueued for addition by the
+// gRPC interface
 //
 // args:
 //   R  coefficient of restitution for elastic collision gets plugged into each added body

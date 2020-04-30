@@ -2,6 +2,7 @@ package flycam
 
 import (
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"log"
 	"nbodygo/internal/g3n/camera"
 	"nbodygo/internal/g3n/core"
 	"nbodygo/internal/g3n/math32"
@@ -168,10 +169,12 @@ func handleKey(_ string, ev interface{}) {
 		flyCam.position.Sub(flyCam.up.Clone().MultiplyScalar(flyCam.movementSpeed))
 	case window.KeyKPAdd:
 		flyCam.movementSpeed += 1
+		log.Printf("[DEBUG] New cam speed: %v\n", flyCam.movementSpeed)
 		return
 	case window.KeyKPSubtract:
 		if flyCam.movementSpeed > 2 {
 			flyCam.movementSpeed -= 1
+			log.Printf("[DEBUG] New cam speed: %v\n", flyCam.movementSpeed)
 		}
 		return
 	default:

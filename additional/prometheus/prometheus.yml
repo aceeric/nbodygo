@@ -1,0 +1,16 @@
+---
+#
+# A Prometheus scrape config that scrapes the n-body simulation which exposes metrics
+# on port 12345
+#
+global:
+  # default scrape interval if not overridden
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'nbodyjava'
+    scrape_interval: 1s
+    static_configs:
+      - targets:
+        - 'localhost:12345'
+

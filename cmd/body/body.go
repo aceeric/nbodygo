@@ -5,6 +5,8 @@ package body
 //
 
 import (
+	"fmt"
+	"log"
 	"math"
 	"nbodygo/cmd/globals"
 	"nbodygo/cmd/instrumentation"
@@ -103,7 +105,8 @@ func (b *Body) SetNotExists() {
 
 //
 // Sets the body to be a sun, with the passed intensity. This results in a light source being
-// associated with the body in the rendering engine
+// associated with the body in the rendering engine. The intensity is needed to offset the G3N light
+// source decay which causes the light to dim over distance
 //
 func (b *Body) SetSun(intensity float64) {
 	b.IsSun = true
@@ -111,17 +114,19 @@ func (b *Body) SetSun(intensity float64) {
 }
 
 //
-// Applies the accumulated force to the velocity and position of the body. Intent it to call
-// this once all bodies have calculated force on themselves from other bodies.
+// Applies the accumulated force to the velocity and position of the body. Intent is to call
+// this once all bodies have calculated force on themselves from other bodies
 //
 // args:
 //   timeScaling  time scale (see 'main' package for origin)
-//   R            coefficient of restitution
+//   R            coefficient of restitution - allows that to be updated via the gRPC interface and
+//                propagated out to all the bodies
 //
 func (b *Body) Update(timeScaling, R float64) *Renderable {
 	if !b.Exists {
 		return NewRenderable(b)
 	}
+	// todo consider removing the guard?
 	if !b.collided {
 		b.Vx += timeScaling * b.fx / b.Mass
 		b.Vy += timeScaling * b.fy / b.Mass
@@ -134,10 +139,11 @@ func (b *Body) Update(timeScaling, R float64) *Renderable {
 	b.collided = false
 	b.r = R
 	if b.WithTelemetry {
-		// todo print b to console
+		fmt.Printf("id:%v x:%v y:%v z:%v vx:%v vy:%v vz:%v m:%v r:%v", b.Id, b.X, b.Y, b.Z,
+			b.Vx, b.Vy, b.Vz, b.Mass, b.Radius)
 	}
 	if math.IsNaN(b.X) || math.IsNaN(b.Y) || math.IsNaN(b.Z) {
-		// todo logger
+		log.Printf("[ERROR] NaN values. id=%d (removing from sim)", b.Id)
 		b.Exists = false
 	}
 	return NewRenderable(b)
@@ -149,7 +155,7 @@ func (b *Body) Update(timeScaling, R float64) *Renderable {
 // for each body in the collection
 //   update my force from other body
 //   check for collision - if collision
-//     enqueue resolution
+//     enqueue resolution for subsequent (thread-safe) collision resolution
 //
 func (b *Body) Compute(bc *BodyCollection) {
 	if !b.Exists {
@@ -168,6 +174,7 @@ func (b *Body) Compute(bc *BodyCollection) {
 			instrumentation.BodyComputations.Inc()
 			collided, dist := b.calcForceFrom(otherBody)
 			if collided {
+				log.Printf("[INFO] Body id %v collided with id %v\n", b.Id, otherBody.Id)
 				if (b.CollisionBehavior == globals.Elastic || b.CollisionBehavior == globals.Fragment) &&
 					(otherBody.CollisionBehavior == globals.Elastic || otherBody.CollisionBehavior == globals.Fragment) {
 					bc.Enqueue(NewCollision(b, otherBody))
@@ -194,15 +201,22 @@ func (b *Body) calcForceFrom(otherBody *Body) (bool, float64) {
 	dy := otherBody.Y - b.Y
 	dz := otherBody.Z - b.Z
 	dist := math.Sqrt(dx*dx + dy*dy + dz*dz)
-	if dist > b.Radius+otherBody.Radius {
+	// Only allow one collision per body per cycle. Once a collision happens, continue to apply gravitational
+	// force to the collided body. Allowing a body to collide multiple times caused odd things to happen
+	// when many bodies were tightly compacted (not sure why) and it also impacts performance - the collision
+	// calculation is expensive. This is a compromise
+	if b.collided || dist > b.Radius+otherBody.Radius {
 		force := G * b.Mass * otherBody.Mass / (dist * dist)
 		b.fx += force * dx / dist
 		b.fy += force * dy / dist
 		b.fz += force * dz / dist
 		return false, 0
-	} else {
+	} else if dist <= b.Radius+otherBody.Radius {
+		log.Printf("[INFO] collision: distance:%v this-radius:%v other-radius:%v this-id:%v other-id%v\n",
+			dist, b.Radius, otherBody.Radius, b.Id, otherBody.Id)
 		return true, dist
 	}
+	return false, 0
 }
 
 //
@@ -213,17 +227,17 @@ func (b *Body) ResolveSubsume(otherBody *Body) {
 	thisMass = b.Mass
 	otherMass = otherBody.Mass
 	/*
-		todo:
-		If I allow the radius to grow it occasionally causes a runaway condition in which a body
-		swallows the entire simulation. Need to figure this out
-		volume := (fourThirdsPi * b.radius  * b.radius  * b.radius) +
-			(fourThirdsPi * otherBody.radius  * otherBody.radius  * otherBody.radius)
+		// todo:
+		// If I allow the radius to grow it occasionally causes a runaway condition in which a body
+		// swallows the entire simulation. Need to figure this out
+		volume := (fourThirdsPi * b.radius * b.radius * b.radius) +
+			(fourThirdsPi * otherBody.radius * otherBody.radius * otherBody.radius)
 		newRadius := math.Pow(((volume * 3) / fourPi, 1/3);
 		b.radius = newRadius;
 	*/
 	b.Mass = thisMass + otherMass
 	otherBody.SetNotExists()
-	// todo logger
+	log.Printf("[INFO] Body ID %v (mass %v) subsumed ID %v (mass %v)\n", b.Id, thisMass, otherBody.Id, otherMass)
 }
 
 //
@@ -250,7 +264,7 @@ func (b *Body) ResolveCollision(otherBody *Body) {
 
 //
 // Applies the passed modifications to the body. Supports the ability to change characteristics of
-// a body in the simulation while the sim is running.
+// a body in the simulation while the sim is running (i.e. via gRPC)
 //
 // args
 //   mods An array of property=value strings. E.g.: "color=blue". Or "x=123". Unknown properties

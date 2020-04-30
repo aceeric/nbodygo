@@ -226,22 +226,38 @@ func (c *client) addBodies(cmd string, args []string) {
 	for i := firstNonPositional; i < len(args); i++ {
 		nv := strings.Split(args[i], "=")
 		switch strings.ToLower(nv[0]) {
-		case "is-sun": isSun = true
-		case "intensity": intensity = parseFloatOrPanic(nv[1])
-		case "collision": collisionBehavior = globals.ParseCollisionBehavior(nv[1])
-		case "color": color = globals.ParseBodyColor(nv[1])
-		case "frag-factor": fragFactor = parseFloatOrPanic(nv[1])
-		case "frag-step":  fragStep = parseFloatOrPanic(nv[1])
-		case "telemetry": withTelemetry = true
-		case "name": name = nv[1]
-		case "class": class = nv[1]
-		case "pinned": pinned = true
-		case "qty": qty = parseIntOrPanic(nv[1])
-		case "delay": delay = parseFloatOrPanic(nv[1])
-		case "posrand": positionRandom = parseFloatOrPanic(nv[1])
-		case "vrand": velocityRandom = parseFloatOrPanic(nv[1])
-		case "massrand": massRandom = parseFloatOrPanic(nv[1])
-		case "rrand": radiusRandom = parseFloatOrPanic(nv[1])
+		case "is-sun":
+			isSun = true
+		case "intensity":
+			intensity = parseFloatOrPanic(nv[1])
+		case "collision":
+			collisionBehavior = globals.ParseCollisionBehavior(nv[1])
+		case "color":
+			color = globals.ParseBodyColor(nv[1])
+		case "frag-factor":
+			fragFactor = parseFloatOrPanic(nv[1])
+		case "frag-step":
+			fragStep = parseFloatOrPanic(nv[1])
+		case "telemetry":
+			withTelemetry = true
+		case "name":
+			name = nv[1]
+		case "class":
+			class = nv[1]
+		case "pinned":
+			pinned = true
+		case "qty":
+			qty = parseIntOrPanic(nv[1])
+		case "delay":
+			delay = parseFloatOrPanic(nv[1])
+		case "posrand":
+			positionRandom = parseFloatOrPanic(nv[1])
+		case "vrand":
+			velocityRandom = parseFloatOrPanic(nv[1])
+		case "massrand":
+			massRandom = parseFloatOrPanic(nv[1])
+		case "rrand":
+			radiusRandom = parseFloatOrPanic(nv[1])
 		default:
 			panic("Unknown param: " + args[i])
 		}
@@ -265,7 +281,7 @@ func (c *client) addOneBody(x, y, z, vx, vy, vz, mass, radius float64,
 	fragFactor, fragStep float64,
 	withTelemetry bool,
 	name, class string,
-    pinned bool) {
+	pinned bool) {
 
 	if isSun {
 		color = globals.White
@@ -321,7 +337,7 @@ func (c *client) addMultiBodies(x, y, z, vx, vy, vz, mass, radius float64,
 		wradius := randomize(radius, radiusRandom)
 		c.addOneBody(wx, wy, wz, wvx, wvy, wvz, wmass, wradius, isSun, intensity, collisionBehavior, color, fragFactor, fragStep,
 			withTelemetry, name, class, pinned)
-		time.Sleep(time.Millisecond * time.Duration(1000 * delay))
+		time.Sleep(time.Millisecond * time.Duration(1000*delay))
 	}
 }
 
@@ -354,9 +370,9 @@ func (c *client) modBodies(whichArg string, args []string) {
 	if err != nil {
 		log.Fatalf("mod-body can't parse: %v\n", whichArg)
 	}
-	validMods := map[string]interface{} {"x":nil, "y":nil, "z":nil, "vx":nil, "vy":nil, "vz":nil, "mass":nil,
-		"radius":nil, "sun":nil, "intensity":nil, "collision":nil, "color":nil, "frag-factor":nil, "frag-step":nil,
-		"telemetry":nil, "exists":nil}
+	validMods := map[string]interface{}{"x": nil, "y": nil, "z": nil, "vx": nil, "vy": nil, "vz": nil, "mass": nil,
+		"radius": nil, "sun": nil, "intensity": nil, "collision": nil, "color": nil, "frag-factor": nil, "frag-step": nil,
+		"telemetry": nil, "exists": nil}
 	for _, arg := range args {
 		p := strings.Split(arg, "=")
 		_, ok := validMods[p[0]]

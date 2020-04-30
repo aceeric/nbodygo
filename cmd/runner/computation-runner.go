@@ -3,12 +3,16 @@ package runner
 import (
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
+	"log"
 	"nbodygo/cmd/body"
 	"nbodygo/cmd/instrumentation"
 	"runtime"
 	"time"
 )
 
+//
+// Prometheus instrumentation
+//
 var metricRunnerCount = instrumentation.ComputationCount.With(prometheus.Labels{"thread": "runner"})
 var metricBodyCount = instrumentation.BodyCount.With(prometheus.Labels{"thread": "runner"})
 
@@ -40,19 +44,22 @@ type ComputationRunner struct {
 	// true if running
 	running bool
 	// applied to the force and velocity by the body force computer as a smoothing factor
-	timeScaling   float64
+	timeScaling float64
+	// allows time scaling to be changed while the sim is running
 	timeScaleChan chan float64
 	// holds computed results for the render engine
 	resultQueueHolder *ResultQueueHolder
 	// coefficient of restitution for elastic collision
-	R       float64
-	RChan   chan float64
+	R float64
+	// allows R to be changed while the sim is running
+	RChan chan float64
+	// allows bodies to be deleted via gRPC while the sim is running
 	deletes int
 	delChan chan int
 }
 
 //
-// Prints metrics to the console
+// Prints metrics to the console todo remove?
 //
 func (r *ComputationRunner) PrintStats() {
 	totalMillis := r.stopTime.Sub(r.startTime).Milliseconds()
@@ -72,7 +79,7 @@ func (r *ComputationRunner) PrintStats() {
 // args:
 //   workerCnt         Number of workers in the pool
 //   timeScaling       Multiplier for force and velocity calc - determines sim "speed"
-//   resultQueueHolder Holds computed results
+//   resultQueueHolder Holds results of each compute cycle for the renderer
 //   bc                Collection of bodies in the simulation
 //
 func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder *ResultQueueHolder,
@@ -95,7 +102,7 @@ func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder 
 
 //
 // Supports debugging - sets the max iterations for the runner. After this many iterations the
-// runner will shut down
+// runner will shut itself down
 //
 func (r *ComputationRunner) SetMaxIterations(maxIteration int) *ComputationRunner {
 	r.maxIteration = maxIteration
@@ -197,13 +204,17 @@ func (r *ComputationRunner) processDeletes() {
 	select {
 	case r.deletes = <-r.delChan:
 		delCnt := r.deletes
+		removedCnt := 0
 		r.deletes = 0
 		if delCnt == -1 {
 			r.bc.IterateOnce(func(b *body.Body) {
-				b.SetNotExists()
+				if b.Exists {
+					b.SetNotExists()
+					removedCnt++
+				}
 			})
 		} else {
-			removedCnt, step, iter := 0, 0, 0
+			step, iter := 0, 0
 			if delCnt > r.bc.Count() {
 				step = 1
 			} else {
@@ -225,6 +236,7 @@ func (r *ComputationRunner) processDeletes() {
 				}
 			})
 		}
+		log.Printf("[INFO] Computation runner set %v bodies to not exist\n", removedCnt)
 		return
 	default:
 	}
@@ -253,10 +265,12 @@ func (r *ComputationRunner) run() {
 				}
 			}
 		case <-r.stop:
+			log.Print("[INFO] Computation runner received stop signal\n")
 			r.running = false
 		}
 		runtime.Gosched()
 	}
+	log.Print("[INFO] Computation runner stopped\n")
 	r.stopTime = time.Now()
 	r.stop <- true
 }

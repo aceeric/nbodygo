@@ -5,12 +5,17 @@ import (
 )
 
 //
-// locates all the application-wide metrics here so they're not sprinkled throughout the app
+// locates all the application-wide metrics here so they're not sprinkled throughout the app. (The
+// references are sprinkled but the instantiations are all here)
 //
 
-var BodyComputations, NoComputationQueues, NoRenderQueues Counter
+var BodyComputations Counter
+var NoComputationQueues Counter
+var NoRenderQueues Counter
 var ComputationCount CounterVec
-var ComputationWorkers, MaxQueues, CurQueues Gauge
+var ComputationWorkers Gauge
+var MaxQueues Gauge
+var CurQueues Gauge
 var BodyCount GaugeVec
 
 func InitMetrics() {

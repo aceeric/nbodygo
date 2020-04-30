@@ -28,7 +28,7 @@ func newServer(callbacks grpcsimcb.GrpcSimCallbacks) nbodygrpc.NBodyServiceServe
 func Start(callbacks grpcsimcb.GrpcSimCallbacks) {
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatalf("gRPC Server failed to listen. The error is: %v\n", err)
 	}
 	grpcServer = grpc.NewServer()
 	reflection.Register(grpcServer)

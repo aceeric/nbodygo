@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"log"
 	"nbodygo/cmd/body"
 	"nbodygo/cmd/g3napp"
 	"nbodygo/cmd/grpcserver"
@@ -11,6 +12,10 @@ import (
 	"time"
 )
 
+//
+// Simulation runner. Initialized and called by the main function. Inits and runs all lower-level
+// functionality.
+//
 const (
 	//Default value for the number of result queues
 	defaultMaxResultQueues = 10
@@ -91,6 +96,7 @@ func (sim NBodySim) Run() {
 	crunner.Stop()
 	instrumentation.Stop()
 	crunner.PrintStats()
+	log.Print("[INFO] Exiting the simulation\n")
 }
 
 //

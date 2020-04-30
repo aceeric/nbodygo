@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+//
+// Contains some utility functions associated with 3D vectors
+//
+
 type Vector3 struct {
 	X float64
 	Y float64

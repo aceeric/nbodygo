@@ -1,6 +1,9 @@
 package body
 
-import "math"
+import (
+	"log"
+	"math"
+)
 
 //
 // This go file localizes functionality associated with elastic collision calculation. If uses code from:
@@ -84,7 +87,7 @@ func (b *Body) calcElasticCollision(otherBody *Body) collisionCalcResult {
 
 	// return if relative speed = 0
 	if v == 0 {
-		// todo logging
+		log.Printf("[INFO] Exit elastic collision: v == 0. This id: %v, other id: %v\n", b.Id, otherBody.Id)
 		return collisionCalcResult{collided: false}
 	}
 	// shift coordinate system so that ball 1 is at the origin
@@ -132,7 +135,7 @@ func (b *Body) calcElasticCollision(otherBody *Body) collisionCalcResult {
 
 	// if balls do not collide, do nothing
 	if thetav > math.Pi/2 || math.Abs(dr) > 1 {
-		// todo logging
+		log.Printf("[INFO] Bodies do not collide. This id: %v, other id: %v\n", b.Id, otherBody.Id)
 		return collisionCalcResult{collided: false}
 	}
 	// calculate impact angles if balls do collide

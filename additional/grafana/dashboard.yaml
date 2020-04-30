@@ -1,0 +1,19 @@
+apiVersion: 1
+
+#
+# Provisions a dashboard located in the container at /var/lib/grafana/dashboards. This path is mounted
+# into the Grafana Docker container by the 'scripts/start-containers' script.
+#
+providers:
+  - name: 'NBody simulation dashboard provider'
+    orgId: 1
+    folder: 'nbody'
+    folderUid: ''
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+

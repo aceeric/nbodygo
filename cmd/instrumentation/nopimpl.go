@@ -17,4 +17,3 @@ func (n *nopGauge) Set(float64) {}
 func (v *nopGaugeVec) With(prometheus.Labels) Gauge {
 	return &nopGaugeInstance
 }
-

@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"nbodygo/cmd/body"
 	"nbodygo/cmd/globals"
+	"nbodygo/cmd/logging"
 	"nbodygo/cmd/sim"
 	"nbodygo/internal/g3n/math32"
 	"os"
@@ -84,6 +85,7 @@ func main() {
 			return
 		}
 	}
+	logging.InitializeLogging()
 	// initialize and run the simulation
 	sim.NewNBodySimBuilder().
 		Bodies(bodies).

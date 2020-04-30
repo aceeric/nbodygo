@@ -5,7 +5,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+	"log"
 	"net/http"
 	"time"
 )
@@ -80,7 +80,7 @@ func Start() {
 		server = &http.Server{Addr: address, Handler: promhttp.Handler()}
 		go func() {
 			if err := server.ListenAndServe(); err != nil {
-				log.Fatal("Unable to start Prometheus HTTP")
+				log.Fatalf("Instrumentation was unable to start Prometheus HTTP server. The error is: %v\n", err)
 			}
 		}()
 	}
@@ -91,10 +91,10 @@ func Start() {
 //
 func Stop() {
 	if server != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
-			log.Error("Unable to stop Prometheus HTTP")
+			log.Print("[ERROR] Unable to stop Prometheus HTTP")
 		}
 		server = nil
 	}

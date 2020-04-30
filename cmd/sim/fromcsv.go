@@ -62,7 +62,7 @@ func FromCsv(csvPath string, bodyCount int, defaultCollisionBehavior globals.Col
 			break
 		}
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Sim CSV Reader failed reading CSV. The error is: %v\n", err)
 		}
 		// using a function to parse allows inline panic recovery so we can just skip records with
 		// parse errors

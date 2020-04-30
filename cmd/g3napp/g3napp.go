@@ -2,6 +2,7 @@ package g3napp
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"log"
 	"math/rand"
 	"nbodygo/cmd/body"
 	"nbodygo/cmd/flycam"
@@ -52,14 +53,15 @@ var metricBodyCount = instrumentation.BodyCount.With(prometheus.Labels{"thread":
 //   initialCam    - initial camera position (always looks at 0,0,0 from this vantage point)
 //   width, height - screen dimensions
 //   holder        - result queue holder - provides bodies to render
-//   done          - channel to signal caller to indicate that the window was closed by virtue of
+//   simDone       - channel to signal caller to indicate that the window was closed by virtue of
 //                   the user pressing ESC
 //
-func StartG3nApp(initialCam *math32.Vector3, width, height int, holder *runner.ResultQueueHolder, done chan<- bool) {
+func StartG3nApp(initialCam *math32.Vector3, width, height int, holder *runner.ResultQueueHolder, simDone chan<- bool) {
 	if g3nApp.app != nil {
 		panic("Cannot call StartG3nApp twice")
 	}
 	go func() {
+		// all calls into G3N have to be in the same thread (G3N locks the thread)
 		g3nApp = G3nApp{
 			app.App(width, height, "N-Body Golang Simulation"),
 			core.NewNode(),
@@ -75,8 +77,8 @@ func StartG3nApp(initialCam *math32.Vector3, width, height int, holder *runner.R
 
 		// set the background to black
 		g3nApp.app.Gls().ClearColor(0.0, 0.0, 0.0, 1.0)
-		g3nApp.app.Run(renderLoop) // G3N engine calls the passed function until user presses ESC
-		done <- true               // user pressed ESC
+		g3nApp.app.Run(renderLoop) // 'Run' calls the passed function until user presses ESC
+		simDone <- true            // user pressed ESC
 	}()
 }
 
@@ -108,11 +110,13 @@ func updateSim() {
 	}
 	renderedBodies := 0
 	lightSources := 0
+	countDetached := 0
 	for _, bri := range rq.Queue() {
 		if !bri.Exists {
 			// body no longer exists so remove from the scene graph
 			if mesh, ok := g3nApp.meshes[bri.Id]; ok {
 				removeMeshFromSceneGraph(mesh, bri.Id)
+				countDetached++
 			}
 		} else {
 			var mesh *graphic.Mesh
@@ -145,6 +149,9 @@ func updateSim() {
 			}
 			renderedBodies++
 		}
+	}
+	if countDetached != 0 {
+		log.Printf("[INFO] Detached %v bodies from scene graph\n", countDetached)
 	}
 	metricRenderCount.Inc()
 	metricBodyCount.Set(float64(len(g3nApp.meshes)))
