@@ -283,7 +283,7 @@ func (c *client) addOneBody(x, y, z, vx, vy, vz, mass, radius float64,
 	name, class string,
 	pinned bool) {
 
-	if isSun {
+	if isSun && color == globals.Random {
 		color = globals.White
 	}
 

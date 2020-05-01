@@ -19,7 +19,7 @@ func newGrpcSimCb(bc *body.BodyCollection, crunner *runner.ComputationRunner,
 			return rqh.Resize(maxQueues)
 		},
 		ResultQueueSize: func() int {
-			max, _ := rqh.MaxQueues()
+			max := rqh.MaxQueues()
 			return max
 		},
 		SetSmoothing: func(timeScale float64) {

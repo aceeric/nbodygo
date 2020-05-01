@@ -81,7 +81,7 @@ type NBodySim struct {
 func (sim NBodySim) Run() {
 	instrumentation.Start()
 	bc := body.NewSimBodyCollection(sim.bodies)
-	rqh := runner.NewResultQueueHolder(defaultMaxResultQueues, true)
+	rqh := runner.NewResultQueueHolder(defaultMaxResultQueues)
 	simDone := make(chan bool) // to shut down the G3N engine
 	if sim.render {
 		g3napp.StartG3nApp(&sim.initialCam, sim.resolution[0], sim.resolution[1], rqh, simDone)

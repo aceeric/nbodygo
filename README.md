@@ -151,11 +151,10 @@ My intent was to keep the gRPC interfaces identical between the Go and Java vers
 
 The following tasks remain to complete the project:
 
-| Task        | Description                                                  |
-| :---------- | ------------------------------------------------------------ |
-| ResultQueue | Rework to use mutex rather than channel                      |
-| README      | Add full instructions for running the client and server. (Copy from Java repo?) |
-| Tests       | The Java version didn't include unit tests. The Go version should have those added |
-| Go docs     | Finalize the go docs                                         |
-| Windows?    | Assess effort to support Windows                             |
+| Task     | Description                                                  |
+| :------- | ------------------------------------------------------------ |
+| README   | Add full instructions for running the client and server. (Copy from Java repo?) |
+| Tests    | The Java version didn't include unit tests. The Go version should have those added |
+| Go docs  | Finalize the go docs                                         |
+| Windows? | Assess effort to support Windows                             |
 
