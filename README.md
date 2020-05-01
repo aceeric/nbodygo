@@ -2,7 +2,7 @@
 
 This project is a port - in progress - of https://github.com/aceeric/nbodyjava into **Go** from **Java**.
 
-The application is an implementation of the *n-body* physics problem in which a space is filled with a number of bodies (in this case spheres) that each have mass, radius, and velocity. The n-body problem requires that each body accumulate the force of gravitational attraction from each other body continuously in a perpetual loop. (Called the *brute-force* approach.)
+The application is an implementation of the *n-body* physics problem in which a space is filled with a number of bodies (in this case spheres) that each have mass, radius, and velocity. The n-body problem requires that each body accumulates the force of gravitational attraction from each other body continuously. (Called the *brute-force* approach.)
 
 This project incorporates code modeled from http://physics.princeton.edu/~fpretori/Nbody/code.htm to implement the gravitational force calculation, and from https://www.plasmaphysics.org.uk/programs/coll3d_cpp.htm to implement the elastic collision calculation. One interesting aspect of the n-body problem from a software perspective is how best to design the simulation to support as many bodies as possible in real time.
 
@@ -16,7 +16,7 @@ Since every body accumulates force from every other body during each computation
 | Frames per second            | 50         | 50          | 50            | 50            | 50             |
 | Flops per second             | 14,998,500 | 374,998,500 | 1,499,998,500 | 5,999,998,500 | 37,499,998,500 |
 
-Looking at the column for **1,000** bodies: it requires 999 thousand force calculations for one cycle through all the bodies (1000 * 999). Each force calculation is about 30 floating point operations. So that's 29.9 million floating point operations (flops) per cycle. The objective is to render the simulation in real time which requires about 50 frames per second resulting in 1.5 billion floating point operations per second to calculate the gravitational attraction for 1,000 bodies. Going to 2,000 bodies increases flops per second to 6 billion. And so on.
+Looking at the column for **1,000** bodies: it requires 999,000 force calculations for one cycle through all the bodies (1000 * 999). Each force calculation is about 30 floating point operations (flops.) So that's 29.9 million flops per cycle. The objective is to render the simulation in real time which requires about 50 frames per second resulting in 1.5 billion flops per second to calculate the gravitational attraction for 1,000 bodies. Going to 2,000 bodies increases flops per second to 6 billion. And so on.
 
 And that doesn't include collision resolution, which requires substantially more floating point operations per collision.
 
@@ -125,9 +125,9 @@ NBODYPROM= bin/server --sim-name=sim3 --bodies=1200 --threads=9
 
 This activates the built-in Prometheus HTTP service embedded in the simulation and also activate collection and exposition of Prometheus metrics. If you're unfamiliar with these tools, refer to https://prometheus.io/ and https://grafana.com/.
 
-Metrics are exposed on port 12345. With metrics enabled, you can watch them this way: `watch curl -s http://localhost:12345/metrics`. That's  pretty bland. So that's where Grafana comes in: After you run the server as described above, you run another script included in this repository: `additional/scripts/start-containers`.
+Metrics are exposed on port 12345. With metrics enabled, you can watch them this way: `watch curl -s http://localhost:12345/metrics`. That's  pretty bland. So that's where Grafana comes in: After you run the server as described above, you run a script included in this repository: `additional/scripts/start-containers`.
 
-First you will need to edit a path in that script that matches where you cloned the git repo on your local workstation. When you run this script it starts two Docker containers and mounts the configurations needed by both Prometheus and Grafana to present the metrics exposed by the n-body sim:
+First you will need to edit a path variable in that script to match where you cloned the git repo on your local workstation. When you run this script it starts two Docker containers and mounts the configurations needed by both Prometheus and Grafana to present the metrics exposed by the n-body sim:
 
 ```bash
 $ additional/scripts/start-containers
@@ -151,11 +151,11 @@ My intent was to keep the gRPC interfaces identical between the Go and Java vers
 
 The following tasks remain to complete the project:
 
-| Task     | Description                                                  |
-| :------- | ------------------------------------------------------------ |
-| README   | Add full instructions for running the client and server. (Copy from Java repo?) |
-| Tests    | The Java version didn't include unit tests. The Go version should have those added |
-| To Do    | There are numerous `todo` comments sprinkled throughout the code that need to be addressed |
-| Go docs  | Finalize the go docs                                         |
-| Windows? | Assess effort to support Windows                             |
+| Task        | Description                                                  |
+| :---------- | ------------------------------------------------------------ |
+| ResultQueue | Rework to use mutex rather than channel                      |
+| README      | Add full instructions for running the client and server. (Copy from Java repo?) |
+| Tests       | The Java version didn't include unit tests. The Go version should have those added |
+| Go docs     | Finalize the go docs                                         |
+| Windows?    | Assess effort to support Windows                             |
 

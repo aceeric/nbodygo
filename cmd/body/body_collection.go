@@ -2,6 +2,7 @@ package body
 
 import (
 	"container/list"
+	"log"
 	"nbodygo/cmd/grpcsimcb"
 	"runtime"
 	"sync"
@@ -20,7 +21,7 @@ type BodyCollection struct {
 	// concurrency
 	lock sync.Mutex
 	// handle add/modify body events
-	evCh chan Event
+	evCh chan event
 	// allows the gRPC server to get a body synchronized
 	getBodyCh chan struct {
 		id   int
@@ -48,7 +49,7 @@ func NewSimBodyCollection(bodies []*Body) *BodyCollection {
 		arr:    make([]*Body, len(bodies)),
 		events: list.New(),
 		lock:   sync.Mutex{},
-		evCh:   make(chan Event, 5000), // todo factor of body count?
+		evCh:   make(chan event, 1000),
 		getBodyCh: make(chan
 		struct {
 			id   int
@@ -77,10 +78,18 @@ func (bc *BodyCollection) GetArray() []*Body {
 //
 // supports post-processing events that would cause race conditions or - would require synchronization - if
 // done concurrently. Synchronization in the tight nested body computation loop has a prohibitive impact
-// on performance
+// on performance.
 //
-func (bc *BodyCollection) Enqueue(ev Event) {
-	bc.evCh <- ev
+// args:
+//   ev  the event to enqueue. If an attempt is made to enqueue an event when the event channel is full,
+//       the event will be discarded and an ERROR will be logged.
+//
+func (bc *BodyCollection) Enqueue(ev event) {
+	select {
+	case bc.evCh <- ev:
+	default:
+		log.Printf("[ERROR] Attempt to enqueue event on full event channel: %+v\n", ev)
+	}
 }
 
 //
@@ -231,14 +240,14 @@ func (bc *BodyCollection) ProcessMods() {
 		bc.lock.Unlock()
 		return
 	}
-	evs := []Event{}
+	evs := []event{}
 	var prev *list.Element = nil
 	for e := bc.events.Front(); e != nil; e = e.Next() {
 		if prev != nil {
 			bc.events.Remove(prev)
 		}
-		if e.Value.(Event).evType != AddEvent {
-			evs = append(evs, e.Value.(Event))
+		if e.Value.(event).evType != addEvent {
+			evs = append(evs, e.Value.(event))
 			prev = e
 		}
 	}
@@ -254,7 +263,7 @@ func (bc *BodyCollection) ProcessMods() {
 func (bc *BodyCollection) countAdds() int {
 	cnt := 0
 	for e := bc.events.Front(); e != nil; e = e.Next() {
-		if e.Value.(Event).evType == AddEvent {
+		if e.Value.(event).evType == addEvent {
 			cnt++
 		}
 	}
@@ -290,8 +299,8 @@ func (bc *BodyCollection) Cycle(R float64) {
 			}
 		}
 		for e := bc.events.Front(); e != nil; e = e.Next() {
-			if e.Value.(Event).evType == AddEvent {
-				arr[j] = e.Value.(Event).GetAdd()
+			if e.Value.(event).evType == addEvent {
+				arr[j] = e.Value.(event).GetAdd()
 				arr[j].r = R
 				j++
 			}
@@ -302,8 +311,8 @@ func (bc *BodyCollection) Cycle(R float64) {
 		cnt = bc.countAdds()
 		if cnt > 0 {
 			for e := bc.events.Front(); e != nil; e = e.Next() {
-				if e.Value.(Event).evType == AddEvent {
-					b := e.Value.(Event).GetAdd()
+				if e.Value.(event).evType == addEvent {
+					b := e.Value.(event).GetAdd()
 					b.r = R
 					bc.arr = append(bc.arr, b)
 				}

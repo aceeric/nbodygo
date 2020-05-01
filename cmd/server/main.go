@@ -56,7 +56,7 @@ var vars = struct {
 	defaultBodyColor:         globals.Random,
 	initialCam:               math32.NewVector3(-100, 300, 1200),
 	simArgs:                  "",
-	vSync:                    false, // todo figure out if g3n supports this
+	vSync:                    false, // not currently supported
 	frameRate:                0,     // "
 	runMillis:                -1,    // run forever in --no-render mode
 }
@@ -151,11 +151,13 @@ func parseArgs() bool {
 			break
 		case "--vsync":
 			vars.vSync, _ = strconv.ParseBool(*nextArg())
-			break
+			println("--vsync is currently unimplemented")
+			return false
 		case "--frame-rate":
 			z, _ := strconv.ParseInt(*nextArg(), 0, 32)
 			vars.frameRate = int(z)
-			break
+			println("--frame-rate is currently unimplemented")
+			return false
 		case "--run-millis":
 			fallthrough
 		case "-u":

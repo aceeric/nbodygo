@@ -21,7 +21,7 @@ var BodyCount GaugeVec
 func InitMetrics() {
 	BodyComputations = NewCounter(
 		prometheus.CounterOpts{
-			Name: "nbody_computations", // todo rename here and in dashboard
+			Name: "nbody_computations",
 			Help: "N-Body nested loop iterations",
 		},
 	)

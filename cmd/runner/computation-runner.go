@@ -59,7 +59,7 @@ type ComputationRunner struct {
 }
 
 //
-// Prints metrics to the console todo remove?
+// Prints metrics to the console
 //
 func (r *ComputationRunner) PrintStats() {
 	totalMillis := r.stopTime.Sub(r.startTime).Milliseconds()

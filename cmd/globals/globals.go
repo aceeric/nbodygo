@@ -9,30 +9,30 @@ import (
 type CollisionBehavior int
 
 const (
-	None     CollisionBehavior = 0
-	Subsume  CollisionBehavior = 1
-	Elastic  CollisionBehavior = 2
-	Fragment CollisionBehavior = 3
+	None CollisionBehavior = iota
+	Subsume
+	Elastic
+	Fragment
 )
 
 type BodyColor int
 
 const (
-	Random    BodyColor = 0
-	Black     BodyColor = 1
-	White     BodyColor = 2
-	Darkgray  BodyColor = 3
-	Gray      BodyColor = 4
-	Lightgray BodyColor = 5
-	Red       BodyColor = 6
-	Green     BodyColor = 7
-	Blue      BodyColor = 8
-	Yellow    BodyColor = 9
-	Magenta   BodyColor = 10
-	Cyan      BodyColor = 11
-	Orange    BodyColor = 12
-	Brown     BodyColor = 13
-	Pink      BodyColor = 14
+	Random BodyColor = iota
+	Black
+	White
+	Darkgray
+	Gray
+	Lightgray
+	Red
+	Green
+	Blue
+	Yellow
+	Magenta
+	Cyan
+	Orange
+	Brown
+	Pink
 )
 
 //

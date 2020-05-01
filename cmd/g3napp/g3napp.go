@@ -73,7 +73,14 @@ func StartG3nApp(initialCam *math32.Vector3, width, height int, holder *runner.R
 		gui.Manager().Set(g3nApp.scene)
 		g3nApp.flyCam = flycam.NewFlyCam(window.Get().(*window.GlfwWindow), g3nApp.scene, width, height, *initialCam)
 
-		// todo register screen resize callback
+		// register screen resize callback
+		onResize := func(_ string, _ interface{}) {
+			width, height := g3nApp.app.GetSize()
+			g3nApp.app.Gls().Viewport(0, 0, int32(width), int32(height))
+			// Update the camera's aspect ratio
+			g3nApp.flyCam.Cam().SetAspect(float32(width) / float32(height))
+		}
+		g3nApp.app.Subscribe(window.OnWindowSize, onResize)
 
 		// set the background to black
 		g3nApp.app.Gls().ClearColor(0.0, 0.0, 0.0, 1.0)
@@ -171,8 +178,7 @@ func removeMeshFromSceneGraph(mesh *graphic.Mesh, id int) {
 }
 
 //
-// Translates a sim body color to a G3N body color. These color names are compatible with the Java version.
-// todo support all G3N colors
+// Translates a sim body color to a G3N body color. These color names are compatible with the Java version
 //
 func xlatColor(color globals.BodyColor) *math32.Color {
 	switch color {

@@ -8,10 +8,10 @@ import (
 type ModBodyResult int
 
 const (
-	NoMatch ModBodyResult = 0
-	ModAll  ModBodyResult = 1
-	ModSome ModBodyResult = 2
-	ModNone ModBodyResult = 3
+	NoMatch ModBodyResult = iota
+	ModAll
+	ModSome
+	ModNone
 )
 
 func (mbr ModBodyResult) String() string {

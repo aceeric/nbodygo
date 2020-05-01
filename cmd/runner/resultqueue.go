@@ -65,7 +65,7 @@ func (rqh *ResultQueueHolder) Add(queue *ResultQueue) {
 		return
 	}
 	q := <-rqh.selector
-	if len(rqh.queues[q].ch) >= rqh.queues[q].maxQueues {
+	if len(rqh.queues[q].ch) >= cap(rqh.queues[q].ch) {
 		panic("No queue capacity")
 	}
 	rqh.queues[q].ch <- queue

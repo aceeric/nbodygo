@@ -14,29 +14,28 @@ package body
 
 //
 // Enum that defines the events that are handled
-// todo enum consistency (iota?) and standards
 //
-type EventType int
+type eventType int
 
 const (
-	CollisionEvent EventType = 0
-	SubsumeEvent   EventType = 1
-	AddEvent       EventType = 2
+	collisionEvent eventType = iota
+	subsumeEvent
+	addEvent
 )
 
 //
 // The event definition
 //
-type Event struct {
-	evType EventType
-	TwoBodies
-	OneBody
+type event struct {
+	evType eventType
+	twoBodies
+	eneBody
 }
 
 //
 // If the event needs two bodies
 //
-type TwoBodies struct {
+type twoBodies struct {
 	b1 *Body
 	b2 *Body
 }
@@ -44,20 +43,20 @@ type TwoBodies struct {
 //
 // If the event needs one body
 //
-type OneBody struct {
+type eneBody struct {
 	b *Body
 }
 
 //
 // Dispatches the event to the appropriate Body handler function
 //
-func (ev Event) Handle() {
+func (ev event) Handle() {
 	switch ev.evType {
-	case CollisionEvent:
-		ev.TwoBodies.b1.ResolveCollision(ev.TwoBodies.b2)
-	case SubsumeEvent:
-		ev.TwoBodies.b1.ResolveSubsume(ev.TwoBodies.b2)
-	case AddEvent:
+	case collisionEvent:
+		ev.twoBodies.b1.ResolveCollision(ev.twoBodies.b2)
+	case subsumeEvent:
+		ev.twoBodies.b1.ResolveSubsume(ev.twoBodies.b2)
+	case addEvent:
 		panic("Event not handled here -- handled by body collection")
 	}
 }
@@ -65,9 +64,9 @@ func (ev Event) Handle() {
 //
 // Gets the body being added from the passed event
 //
-func (ev Event) GetAdd() *Body {
-	if ev.evType == AddEvent {
-		return ev.OneBody.b
+func (ev event) GetAdd() *Body {
+	if ev.evType == addEvent {
+		return ev.eneBody.b
 	} else {
 		return nil
 	}
@@ -76,10 +75,10 @@ func (ev Event) GetAdd() *Body {
 //
 // Creates an event representing a collision between two bodies
 //
-func NewCollision(b1 *Body, b2 *Body) Event {
-	return Event{
-		evType: CollisionEvent,
-		TwoBodies: TwoBodies{
+func newCollision(b1 *Body, b2 *Body) event {
+	return event{
+		evType: collisionEvent,
+		twoBodies: twoBodies{
 			b1: b1,
 			b2: b2,
 		},
@@ -89,10 +88,10 @@ func NewCollision(b1 *Body, b2 *Body) Event {
 //
 // Creates an event representing one body subsuming another body
 //
-func NewSubsume(b1 *Body, b2 *Body) Event {
-	return Event{
-		evType: SubsumeEvent,
-		TwoBodies: TwoBodies{
+func newSubsume(b1 *Body, b2 *Body) event {
+	return event{
+		evType: subsumeEvent,
+		twoBodies: twoBodies{
 			b1: b1, // subsumes b2
 			b2: b2, // subsumed by b1
 		},
@@ -102,10 +101,10 @@ func NewSubsume(b1 *Body, b2 *Body) Event {
 //
 // Creates an event representing a body being added into a running simulation
 //
-func NewAdd(b *Body) Event {
-	return Event{
-		evType: AddEvent,
-		OneBody: OneBody{
+func NewAdd(b *Body) event {
+	return event{
+		evType: addEvent,
+		eneBody: eneBody{
 			b: b,
 		},
 	}

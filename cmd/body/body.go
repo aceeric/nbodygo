@@ -177,12 +177,12 @@ func (b *Body) Compute(bc *BodyCollection) {
 				log.Printf("[INFO] Body id %v collided with id %v\n", b.Id, otherBody.Id)
 				if (b.CollisionBehavior == globals.Elastic || b.CollisionBehavior == globals.Fragment) &&
 					(otherBody.CollisionBehavior == globals.Elastic || otherBody.CollisionBehavior == globals.Fragment) {
-					bc.Enqueue(NewCollision(b, otherBody))
+					bc.Enqueue(newCollision(b, otherBody))
 				} else if b.CollisionBehavior == globals.Subsume || otherBody.CollisionBehavior == globals.Subsume {
 					if b.Radius > otherBody.Radius && dist <= b.Radius {
-						bc.Enqueue(NewSubsume(b, otherBody))
+						bc.Enqueue(newSubsume(b, otherBody))
 					} else if otherBody.Radius > b.Radius && dist <= otherBody.Radius {
-						bc.Enqueue(NewSubsume(otherBody, b))
+						bc.Enqueue(newSubsume(otherBody, b))
 					}
 				}
 			}
@@ -296,12 +296,12 @@ func (b *Body) ApplyMods(mods []string) bool {
 				b.FragFactor = globals.SafeParseFloat(nvp[1], b.FragFactor)
 			case "FRAG_STEP":
 				b.FragStep = globals.SafeParseFloat(nvp[1], b.FragStep)
-			case "SUN":
-				b.IsSun = globals.ParseBoolean(nvp[1]) // todo implement in g3napp
 			case "COLLISION":
 				b.CollisionBehavior = globals.ParseCollisionBehavior(nvp[1])
 			case "COLOR":
-				b.BodyColor = globals.ParseBodyColor(nvp[1])
+				if !b.IsSun { // suns are always white in the current version
+					b.BodyColor = globals.ParseBodyColor(nvp[1])
+				}
 			case "TELEMETRY":
 				b.WithTelemetry = globals.ParseBoolean(nvp[1])
 			case "EXISTS":

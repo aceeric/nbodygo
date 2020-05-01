@@ -69,18 +69,18 @@ func (s *nbodyServiceServer) RemoveBodies(_ context.Context, in *nbodygrpc.ItemC
 }
 
 func (s *nbodyServiceServer) AddBody(_ context.Context, in *nbodygrpc.BodyDescription) (*nbodygrpc.ResultCode, error) {
-	mass := float64(in.Mass) // todo remove redundant type conv
-	x := float64(in.X)
-	y := float64(in.Y)
-	z := float64(in.Z)
-	vx := float64(in.Vx)
-	vy := float64(in.Vy)
-	vz := float64(in.Vz)
-	radius := float64(in.Radius)
+	mass := in.Mass
+	x := in.X
+	y := in.Y
+	z := in.Z
+	vx := in.Vx
+	vy := in.Vy
+	vz := in.Vz
+	radius := in.Radius
 	isSun := in.IsSun
 	intensity := in.Intensity
-	fragFactor := float64(in.FragFactor)
-	fragStep := float64(in.FragStep)
+	fragFactor := in.FragFactor
+	fragStep := in.FragStep
 	withTelemetry := in.WithTelemetry
 	name := in.Name
 	class := in.Class
