@@ -1,7 +1,5 @@
 /*
-Body package
-
-The body package contains the functionality to represent a body in the simulation, and to handle
+Package body contains the functionality to represent a body in the simulation, and to handle
 the n-body gravitational force calculation, and collision detection and resolution. The central
 abstraction is the 'Body' struct - which models a body. It also includes a struct called
 'Renderable' which represents a subset of a Body that is needed by the rendering engine.

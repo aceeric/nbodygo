@@ -32,9 +32,9 @@ const (
 )
 
 //
-// N-Body Sim state. Initialized by the 'NBodySimBuilder' function
+// N-Body Sim state. Initialized by the 'nBodySimBuilder' function
 //
-type NBodySim struct {
+type nBodySim struct {
 	// A list of bodies to start the simulation with
 	bodies []*body.Body
 
@@ -78,7 +78,7 @@ type NBodySim struct {
 // * Waits for the G3N goroutine to exit (when the user presses ESC)
 // * Cleans up
 //
-func (sim NBodySim) Run() {
+func (sim nBodySim) Run() {
 	instrumentation.Start()
 	bc := body.NewSimBodyCollection(sim.bodies)
 	rqh := runner.NewResultQueueHolder(defaultMaxResultQueues)

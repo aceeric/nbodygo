@@ -9,7 +9,7 @@ import (
 
 //
 // See 'grpcsimcb' package for details. This is the struct of callbacks that lets the
-// gRPC package call back into the sim without circular references that prevent a
+// gRPC package call back into the sim package without circular references that prevent a
 // successful compile
 //
 func newGrpcSimCb(bc *body.BodyCollection, crunner *runner.ComputationRunner,

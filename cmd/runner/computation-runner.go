@@ -11,15 +11,15 @@ import (
 )
 
 //
-// Prometheus instrumentation
+// The computation runner runs the n-body computation perpetually in a loop until signaled to stop. The
+// runner contains a reference to the worker pool and a reference to the sim body collection.
+//
+
+//
+// Prometheus instrumentation - execute the 'With' function only once for efficiency
 //
 var metricRunnerCount = instrumentation.ComputationCount.With(prometheus.Labels{"thread": "runner"})
 var metricBodyCount = instrumentation.BodyCount.With(prometheus.Labels{"thread": "runner"})
-
-//
-// The computation runner runs the n-body computation perpetually in a loop until signaled to stop. The
-// runner contains a worker pool and a reference to the sim body collection.
-//
 
 //
 // Computation runner state

@@ -105,10 +105,6 @@ This should start the simulation window with 1,000 bodies orbiting a sun.  Note 
 
 Assuming everything worked and the sim comes up, you can use the standard keyboard navigation keys to navigate the sim: W, A, S, D, etc. See the N-Body *Java* GitHub page for details, and all the command-line options and gRPC client options.
 
-### Java vs Go
-
-TODO some comparisons
-
 ### Simulations
 
 The Java version contained a directory `additional/sims` with instructions for running ad-hoc simulations. That directory has been updated and included with this repository in the same location to be compatible with the Go version. The primary difference is using the Go client and server as executables rather than the Java client and server, which compiled to JAR files.
@@ -158,3 +154,6 @@ The following tasks remain to complete the project:
 | Go docs  | Finalize the go docs                                         |
 | Windows? | Assess effort to support Windows                             |
 
+### Questions/Comments?
+
+ericace-at-protonmail-dot-com

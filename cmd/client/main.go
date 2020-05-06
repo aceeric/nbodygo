@@ -8,7 +8,6 @@ import (
 	"log"
 	"math/rand"
 	"nbodygo/cmd/globals"
-	"nbodygo/cmd/grpcserver"
 	"nbodygo/cmd/nbodygrpc"
 	"os"
 	"strconv"
@@ -299,8 +298,8 @@ func (c *client) addOneBody(x, y, z, vx, vy, vz, mass, radius float64,
 		Radius:            radius,
 		IsSun:             isSun,
 		Intensity:         intensity,
-		CollisionBehavior: grpcserver.SimCbToGrpcCb(collisionBehavior),
-		BodyColor:         grpcserver.SimColorToGrpcColor(color),
+		CollisionBehavior: nbodygrpc.SimCbToGrpcCb(collisionBehavior),
+		BodyColor:         nbodygrpc.SimColorToGrpcColor(color),
 		FragFactor:        fragFactor,
 		FragStep:          fragStep,
 		WithTelemetry:     withTelemetry,

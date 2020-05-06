@@ -14,7 +14,7 @@ import (
 )
 
 /*
-Entry point for the server
+Entry point for the server - parses command line args and runs the simulation runner
 */
 
 const (

@@ -6,10 +6,10 @@ import (
 )
 
 //
-// Builder pattern. Builds an 'NBodySim' struct
+// Builder pattern. Builds an 'nBodySim' struct
 //
 
-type NBodySimBuilder struct {
+type nBodySimBuilder struct {
 	bodies     []*body.Body
 	workers    int
 	scaling    float64
@@ -22,9 +22,9 @@ type NBodySimBuilder struct {
 	runMillis  int
 }
 
-func NewNBodySimBuilder() *NBodySimBuilder {
+func NewNBodySimBuilder() *nBodySimBuilder {
 	// initialize a builder with reasonable defaults in case overrides are not provided
-	b := NBodySimBuilder{
+	b := nBodySimBuilder{
 		bodies:     []*body.Body{}, // no bodies
 		workers:    defaultWorkers,
 		scaling:    defaultTimeScaling,
@@ -39,58 +39,58 @@ func NewNBodySimBuilder() *NBodySimBuilder {
 	return &b
 }
 
-func (sb *NBodySimBuilder) Bodies(bodies []*body.Body) *NBodySimBuilder {
+func (sb *nBodySimBuilder) Bodies(bodies []*body.Body) *nBodySimBuilder {
 	sb.bodies = bodies
 	return sb
 }
 
-func (sb *NBodySimBuilder) Workers(threads int) *NBodySimBuilder {
+func (sb *nBodySimBuilder) Workers(threads int) *nBodySimBuilder {
 	sb.workers = threads
 	return sb
 }
 
-func (sb *NBodySimBuilder) Scaling(scaling float64) *NBodySimBuilder {
+func (sb *nBodySimBuilder) Scaling(scaling float64) *nBodySimBuilder {
 	sb.scaling = scaling
 	return sb
 }
 
-func (sb *NBodySimBuilder) InitialCam(initialCam math32.Vector3) *NBodySimBuilder {
+func (sb *nBodySimBuilder) InitialCam(initialCam math32.Vector3) *nBodySimBuilder {
 	sb.initialCam = initialCam
 	return sb
 }
 
-func (sb *NBodySimBuilder) SimWorker(simThread Worker) *NBodySimBuilder {
+func (sb *nBodySimBuilder) SimWorker(simThread Worker) *nBodySimBuilder {
 	sb.simThread = simThread
 	return sb
 }
 
-func (sb *NBodySimBuilder) Render(render bool) *NBodySimBuilder {
+func (sb *nBodySimBuilder) Render(render bool) *nBodySimBuilder {
 	sb.render = render
 	return sb
 }
 
-func (sb *NBodySimBuilder) Resolution(resolution [2]int) *NBodySimBuilder {
+func (sb *nBodySimBuilder) Resolution(resolution [2]int) *nBodySimBuilder {
 	sb.resolution = resolution
 	return sb
 }
 
-func (sb *NBodySimBuilder) VSync(vSync bool) *NBodySimBuilder {
+func (sb *nBodySimBuilder) VSync(vSync bool) *nBodySimBuilder {
 	sb.vSync = vSync
 	return sb
 }
 
-func (sb *NBodySimBuilder) FrameRate(frameRate int) *NBodySimBuilder {
+func (sb *nBodySimBuilder) FrameRate(frameRate int) *nBodySimBuilder {
 	sb.frameRate = frameRate
 	return sb
 }
 
-func (sb *NBodySimBuilder) RunMillis(runMillis int) *NBodySimBuilder {
+func (sb *nBodySimBuilder) RunMillis(runMillis int) *nBodySimBuilder {
 	sb.runMillis = runMillis
 	return sb
 }
 
-func (sb *NBodySimBuilder) Build() *NBodySim {
-	return &NBodySim{
+func (sb *nBodySimBuilder) Build() *nBodySim {
+	return &nBodySim{
 		bodies:     sb.bodies,
 		workers:    sb.workers,
 		scaling:    sb.scaling,
