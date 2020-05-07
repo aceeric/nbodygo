@@ -6,7 +6,7 @@ import (
 )
 
 //
-// This go file localizes functionality associated with elastic collision calculation. If uses code from:
+// This go file localizes functionality associated with elastic collision calculation. It uses code from:
 // https://www.plasmaphysics.org.uk/programs/coll3d_cpp.htm
 //
 

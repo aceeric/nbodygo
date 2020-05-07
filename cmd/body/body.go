@@ -292,9 +292,9 @@ func (b *Body) ApplyMods(mods []string) bool {
 				b.Mass = globals.SafeParseFloat(nvp[1], b.Mass)
 			case "RADIUS":
 				b.Radius = globals.SafeParseFloat(nvp[1], b.Radius)
-			case "FRAG_FACTOR":
+			case "FRAG-FACTOR":
 				b.FragFactor = globals.SafeParseFloat(nvp[1], b.FragFactor)
-			case "FRAG_STEP":
+			case "FRAG-STEP":
 				b.FragStep = globals.SafeParseFloat(nvp[1], b.FragStep)
 			case "COLLISION":
 				b.CollisionBehavior = globals.ParseCollisionBehavior(nvp[1])

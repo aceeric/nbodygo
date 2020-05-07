@@ -166,15 +166,13 @@ func (bc *BodyCollection) doSendBody(b *Body) {
 // pattern as GetBody / HandleGetBody / doSendBody except since all it has to return is a result code, it
 // doesn't need a doModBody
 //
-func (bc *BodyCollection) ModBody(id int, name, class string, mods []string) func() grpcsimcb.ModBodyResult {
+func (bc *BodyCollection) ModBody(id int, name, class string, mods []string) grpcsimcb.ModBodyResult {
 	bc.modBodyCh <- struct {
 		id          int
 		name, class string
 		mods        []string
 	}{id: id, name: name, class: class, mods: mods}
-	return func() grpcsimcb.ModBodyResult {
-		return <-bc.modBodyResultCh
-	}
+	return <-bc.modBodyResultCh
 }
 
 //
@@ -232,7 +230,7 @@ func (bc *BodyCollection) Count() int {
 //
 // Walks the internal 'events' list and processes all enqueued events. These are events that require
 // changing body state in such a way that would require synchronization to avoid race conditions. Adds
-// are excluded from this processing. (Handled in the 'Cycle' function.)
+// are excluded from this processing. (Called by the computation runner.)
 //
 func (bc *BodyCollection) ProcessMods() {
 	bc.lock.Lock()

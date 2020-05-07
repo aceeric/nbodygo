@@ -61,7 +61,7 @@ func newGrpcSimCb(bc *body.BodyCollection, crunner *runner.ComputationRunner,
 			return id
 		},
 		ModBody: func(id int, name, class string, mods []string) grpcsimcb.ModBodyResult {
-			return bc.ModBody(id, name, class, mods)()
+			return bc.ModBody(id, name, class, mods)
 		},
 		GetBody: func(id int, name string) interface{} {
 			return bc.GetBody(id, name)
