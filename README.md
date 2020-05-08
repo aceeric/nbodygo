@@ -1,8 +1,12 @@
 # N-Body Go
 
-This project is a port - in progress - of https://github.com/aceeric/nbodyjava into **Go** from **Java**.
+This project is a port of https://github.com/aceeric/nbodyjava into **Go** from **Java**.
 
-The application is an implementation of the *n-body* physics problem in which a space is filled with a number of bodies (in this case spheres) that each have mass, radius, and velocity. The n-body problem requires that each body accumulates the force of gravitational attraction from each other body continuously. (Called the *brute-force* approach.)
+The application is an implementation of the *n-body* physics problem in which a space is filled with a number of bodies (in this case spheres) that each have mass, radius, and velocity. The n-body problem requires that each body accumulates the force of gravitational attraction from each other body continuously. (The *brute-force* approach.)
+
+Here's a brief screen cast of one of the built-in simulations included in the app, though the app provides the capability to build your own simulations:
+
+<video src="additional/images/screencast.webm"></video>
 
 This project incorporates code modeled from http://physics.princeton.edu/~fpretori/Nbody/code.htm to implement the gravitational force calculation, and from https://www.plasmaphysics.org.uk/programs/coll3d_cpp.htm to implement the elastic collision calculation. One interesting aspect of the n-body problem from a software perspective is how best to design the simulation to support as many bodies as possible in real time.
 
@@ -149,9 +153,7 @@ The following tasks remain to complete the project:
 
 | Task     | Description                                                  |
 | :------- | ------------------------------------------------------------ |
-| README   | Add full instructions for running the client and server. (Copy from Java repo?) |
-| Tests    | The Java version didn't include unit tests. The Go version should have those added |
-| Go docs  | Finalize the go docs                                         |
+| README   | Add full instructions for running the client and server. (Copy from Java repo) |
 | Windows? | Assess effort to support Windows                             |
 
 ### Questions/Comments?

@@ -10,7 +10,7 @@ Logging is enabled using an environment variable 'NBODYLOG' with a level value f
 $ NBODYLOG=INFO bin/server
 
 By default, logging is off. If an invalid log level is supplied, or no log level is supplied, then logging
-is off. There is no logging in the client. Note: logging statements that don't contain the a filter specifier
-like '[...] are always logged to stderr. (They are passed through the Hashicorp filter untouched.)
+is off. There is no logging in the client. Note: logging statements that don't contain a filter specifier
+like '[...]' are always logged to stderr. (They are passed through the Hashicorp filter untouched.)
 */
 package logging

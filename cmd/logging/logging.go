@@ -9,13 +9,15 @@ import (
 )
 
 const (
+	// the environment variable that passes the log level to the app
 	logEnvVar = "NBODYLOG"
 )
 
+// Valid logging levels
 var levels = []logutils.LogLevel{"DEBUG", "INFO", "WARN", "ERROR", "OFF"}
 
 //
-// Initializes the Hashicorp logging filter from the environment, and applies it to the
+// Initializes the Hashicorp logging filter from the environment, and applies the filter to the
 // built-in Go logging capability
 //
 func InitializeLogging() {
@@ -53,7 +55,7 @@ func toLogLevel(level string) logutils.LogLevel {
 // '/foo/bar' is the directory in which the app is running, and 'log' is a directory
 // under '/foo/bar', and 'log' is a file in directory '/foo/bar/log'.
 //
-// returns: a pointer to the opened/created file, or exits via log.fatal if there is any
+// returns: a pointer to the opened/created 'File', or exits via log.Fatal if there is any
 // error
 //
 func initLogWriter() *os.File {

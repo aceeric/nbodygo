@@ -106,7 +106,7 @@ func engage() {
 		flyCam.f12Bound = true
 		glfwWindow.SubscribeID(window.OnKeyUp, EngageDisengageEvId, handleF12)
 	} else {
-		// reset mouse for a smooth re-attachment
+		// re-attach: reset mouse for a smooth re-attachment
 		flyCam.lastMouseX, flyCam.lastMouseY = NoLastMousePos, NoLastMousePos
 	}
 	glfwWindow.SubscribeID(window.OnKeyUp, DefaultEvId, handleEsc)

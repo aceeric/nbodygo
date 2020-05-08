@@ -102,7 +102,7 @@ func StopG3nApp() {
 func renderLoop(renderer *renderer.Renderer, _ time.Duration) {
 	updateSim()
 	g3nApp.app.Gls().Clear(gls.DEPTH_BUFFER_BIT | gls.STENCIL_BUFFER_BIT | gls.COLOR_BUFFER_BIT)
-	renderer.Render(g3nApp.scene, g3nApp.flyCam.Cam())
+	_ = renderer.Render(g3nApp.scene, g3nApp.flyCam.Cam())
 }
 
 //

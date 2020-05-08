@@ -347,7 +347,6 @@ func (c *client) addMultiBodies(x, y, z, vx, vy, vz, mass, radius float64,
 //   whichArg  Specifies which body or bodies to modify. Either 'id=', 'class=', or 'name='. E.g.: mod-body id=123.
 //             Or: mod-body name=jupiter or mod-body class=asteroid
 //
-//
 func (c *client) modBodies(whichArg string, args []string) {
 	which := strings.Split(whichArg, "=")
 	id := -1
