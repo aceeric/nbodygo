@@ -40,20 +40,21 @@ This repo includes the G3N Go code. I made a couple of minor changes to support 
 
 ### Prerequisites
 
-The following steps are required to build and run the application. This README assumes that you've already installed Go. If that's *not* the case, please refer to https://golang.org/doc/install.  This project was developed using Go 1.14, and uses Go *modules*:
+The following steps are required to build and run the application. This README assumes that you've already installed Go. If that's *not* the case, please refer to https://golang.org/doc/install.  This project was developed using Go 1.20, and uses Go *modules*:
 
 ```bash
-$ go version
-go version go1.14.2 linux/amd64
+go version
 ```
 
-This README also assumes the availability of Gnu Make, which seems widely available on Linux. I use the JetBrains GoLand IDE (https://www.jetbrains.com/go/download). If you use that, you will have to manually configure module support since this project's `.gitignore` excludes the IDE config file directory.
+Result:
+```
+go version go1.20.1 linux/amd64
+```
 
 First clone the GitHub repository to your local machine:
 
 ```bash
-$ git clone https://github.com/aceeric/nbodygo.git
-$ cd nbodygo
+git clone https://github.com/aceeric/nbodygo.git && cd nbodygo
 ```
 
 The following prerequisites are documented on https://grpc.io/docs/quickstart/go/:
@@ -62,7 +63,7 @@ Install gRPC as a Go module:
 
 ```bash
 $ export GO111MODULE=on
-$ go get google.golang.org/grpc@v1.28.1
+$ go get google.golang.org/grpc@v1.53.0
 ```
 
 Install the gRPC protobuf compiler. This is the tool that converts the gRPC interface description language into Go code that is referenced by both the client and the server. The protobuf compiler is referenced by the project Make file. On Ubuntu:
@@ -73,11 +74,12 @@ $ sudo apt install protobuf-compiler
 
 If that succeeds, then you can execute `which protoc` to get the location of the installed binary, and add it to your PATH.
 
-Install the Go `protoc` plugin and update your PATH as documented on the quick start:
+Install the Go `protoc` plugins and update your PATH as documented on the quick start:
 
 ```bash
-$ go get github.com/golang/protobuf/protoc-gen-go
-$ export PATH="$PATH:$(go env GOPATH)/bin"
+go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+export PATH="$PATH:$(go env GOPATH)/bin"
 ```
 
 You have to install some requirements for G3N, as documented on their GitHub repo: https://github.com/g3n/engine:

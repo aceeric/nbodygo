@@ -5,8 +5,11 @@ all: proto client server
 
 .PHONY : proto
 proto:
-	protoc --proto_path=$(ROOT)/cmd/nbodygrpc/ $(ROOT)/cmd/nbodygrpc/nbodyservice.proto \
-	  --go_out=plugins=grpc:$(ROOT)/cmd/nbodygrpc
+	protoc\
+	 --proto_path=$(ROOT)/cmd/nbodygrpc\
+	 --go_out=$(ROOT)/cmd/nbodygrpc\
+	 --go-grpc_out=$(ROOT)/cmd/nbodygrpc\
+	 nbodyservice.proto
 
 .PHONY : client
 client:
