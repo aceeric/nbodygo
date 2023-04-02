@@ -23,18 +23,14 @@ const (
 	maxFrags         float64 = 2000              // max fragments a body can fragment into
 )
 
-//
 // Maintains fragmentation state as a body is fragmenting - potentially across compute cycles
-//
 type fragInfo struct {
 	radius, newRadius, mass float64
 	fragments               int
 	curPos                  util.Vector3
 }
 
-//
 // The simulation body
-//
 type Body struct {
 	Id                                int
 	Name                              string
@@ -55,10 +51,8 @@ type Body struct {
 	collided                          bool
 }
 
-//
 // Creates a body that exists with hard-coded values and properties typically of
 // interest specified as function args
-//
 func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float64, collisionBehavior globals.CollisionBehavior,
 	bodyColor globals.BodyColor, fragFactor, fragmentationStep float64, withTelemetry bool, name, class string,
 	pinned bool) *Body {
@@ -94,34 +88,29 @@ func NewBody(id int, x, y, z, vx, vy, vz, mass, radius float64, collisionBehavio
 	return &b
 }
 
-//
 // Sets the body not to exist, which will result in it being removed from the body collection
 // and also from the rendering engine scene graph
-//
 func (b *Body) SetNotExists() {
 	b.Mass = 0
 	b.Exists = false
 }
 
-//
 // Sets the body to be a sun, with the passed intensity. This results in a light source being
 // associated with the body in the rendering engine. The intensity is needed to offset the G3N light
 // source decay which causes the light to dim over distance
-//
 func (b *Body) SetSun(intensity float64) {
 	b.IsSun = true
 	b.intensity = intensity
 }
 
-//
 // Applies the accumulated force to the velocity and position of the body. Intent is to call
 // this once all bodies have calculated force on themselves from other bodies
 //
 // args:
-//   timeScaling  time scale (see 'main' package for origin)
-//   R            coefficient of restitution - allows that to be updated via the gRPC interface and
-//                propagated out to all the bodies
 //
+//	timeScaling  time scale (see 'main' package for origin)
+//	R            coefficient of restitution - allows that to be updated via the gRPC interface and
+//	             propagated out to all the bodies
 func (b *Body) Update(timeScaling, R float64) *Renderable {
 	if !b.Exists {
 		return NewRenderable(b)
@@ -149,14 +138,13 @@ func (b *Body) Update(timeScaling, R float64) *Renderable {
 	return NewRenderable(b)
 }
 
-//
 // executes a for loop:
 //
 // for each body in the collection
-//   update my force from other body
-//   check for collision - if collision
-//     enqueue resolution for subsequent (thread-safe) collision resolution
 //
+//	update my force from other body
+//	check for collision - if collision
+//	  enqueue resolution for subsequent (thread-safe) collision resolution
 func (b *Body) Compute(bc *BodyCollection) {
 	if !b.Exists {
 		return
@@ -190,12 +178,10 @@ func (b *Body) Compute(bc *BodyCollection) {
 	})
 }
 
-//
 // Accumulates gravitational force on this body from other body. Also checks for collisions
 //
 // returns true if this body collided with otherBody, else false. If true, second return value
 // is the distance between the centers of the two spheres.
-//
 func (b *Body) calcForceFrom(otherBody *Body) (bool, float64) {
 	dx := otherBody.X - b.X
 	dy := otherBody.Y - b.Y
@@ -219,9 +205,7 @@ func (b *Body) calcForceFrom(otherBody *Body) (bool, float64) {
 	return false, 0
 }
 
-//
 // Absorbs 'otherBody' into this body, and sets 'otherBody' not exists
-//
 func (b *Body) ResolveSubsume(otherBody *Body) {
 	var thisMass, otherMass float64
 	thisMass = b.Mass
@@ -240,37 +224,34 @@ func (b *Body) ResolveSubsume(otherBody *Body) {
 	log.Printf("[INFO] Body ID %v (mass %v) subsumed ID %v (mass %v)\n", b.Id, thisMass, otherBody.Id, otherMass)
 }
 
-//
 // Determines whether an elastic collision - or a fragmentation - should be the result of a collision
 // and invokes the appropriate function
-//
 func (b *Body) ResolveCollision(otherBody *Body) {
-	if ! b.Exists || !otherBody.Exists {
+	if !b.Exists || !otherBody.Exists {
 		return
 	}
 	if b.CollisionBehavior == globals.Elastic &&
 		(otherBody.CollisionBehavior == globals.Elastic || otherBody.CollisionBehavior == globals.Fragment) {
-		r := b.calcElasticCollision(otherBody)
+		r := b.gpt_calcElasticCollision(otherBody)
 		if r.collided {
 			shouldFragment, thisFactor, otherFactor := b.shouldFragment(otherBody, r)
 			if shouldFragment {
 				b.doFragment(otherBody, thisFactor, otherFactor)
 			} else {
-				b.doElastic(otherBody, r)
+				b.gpt_doElastic(otherBody, r)
 			}
 		}
 	}
 }
 
-//
 // Applies the passed modifications to the body. Supports the ability to change characteristics of
 // a body in the simulation while the sim is running (i.e. via gRPC)
 //
 // args
-//   mods An array of property=value strings. E.g.: "color=blue". Or "x=123". Unknown properties
-//        are ignored. Parse errors are ignored. If an array element is not in property=value
-//        form, it is ignored
 //
+//	mods An array of property=value strings. E.g.: "color=blue". Or "x=123". Unknown properties
+//	     are ignored. Parse errors are ignored. If an array element is not in property=value
+//	     form, it is ignored
 func (b *Body) ApplyMods(mods []string) bool {
 	for _, mod := range mods {
 		nvp := strings.Split(mod, "=")
@@ -312,9 +293,7 @@ func (b *Body) ApplyMods(mods []string) bool {
 	return true
 }
 
-//
 // Generates a 1-up ID on each call to assign to bodies as they are created
-//
 var idGenerator = struct {
 	lock sync.Mutex
 	id   int

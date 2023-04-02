@@ -11,7 +11,6 @@ import (
 // of a body on impact
 //
 
-//
 // Uses a previous elastic collision calc result and determines - based on approaching velocity
 // and fragmentation characteristics whether to initiate fragmentation of a body. Fragmentation
 // is initiated and then completed over the course of some number of compute cycles because it is
@@ -20,37 +19,34 @@ import (
 //
 // return true and fragmentation factors if should fragment. If false then the frag factors
 // are zero and should not be used
-//
-func (b *Body) shouldFragment(otherBody *Body, r collisionCalcResult) (bool, float64, float64) {
-	if !(b.CollisionBehavior == globals.Fragment ||
-		otherBody.CollisionBehavior == globals.Fragment) {
-		return false, 0, 0
-	}
-	vThis := b.Vx + b.Vy + b.Vz
-	dvThis :=
-		math.Abs(b.Vx-((r.vx1-r.vx_cm)*b.r+r.vx_cm)) +
-			math.Abs(b.Vy-((r.vy1-r.vy_cm)*b.r+r.vy_cm)) +
-			math.Abs(b.Vz-((r.vz1-r.vz_cm)*b.r+r.vz_cm))
-
-	thisFactor := dvThis / math.Abs(vThis)
-	vOther := otherBody.Vx + otherBody.Vy + otherBody.Vz
-	dvOther :=
-		math.Abs(otherBody.Vx-((r.vx2-r.vx_cm)*b.r+r.vx_cm)) +
-			math.Abs(otherBody.Vy-((r.vy2-r.vy_cm)*b.r+r.vy_cm)) +
-			math.Abs(otherBody.Vz-((r.vz2-r.vz_cm)*b.r+r.vz_cm))
-
-	otherFactor := dvOther / math.Abs(vOther)
-
-	if b.CollisionBehavior == globals.Fragment && thisFactor > b.FragFactor ||
-		otherBody.CollisionBehavior == globals.Fragment && otherFactor > otherBody.FragFactor {
-		return true, thisFactor, otherFactor
-	}
+func (b *Body) shouldFragment(otherBody *Body, r gpt_collisionCalcResult) (bool, float64, float64) {
+	//	if !(b.CollisionBehavior == globals.Fragment ||
+	//		otherBody.CollisionBehavior == globals.Fragment) {
+	//		return false, 0, 0
+	//	}
+	//	vThis := b.Vx + b.Vy + b.Vz
+	//	dvThis :=
+	//		math.Abs(b.Vx-((r.vx1-r.vx_cm)*b.r+r.vx_cm)) +
+	//			math.Abs(b.Vy-((r.vy1-r.vy_cm)*b.r+r.vy_cm)) +
+	//			math.Abs(b.Vz-((r.vz1-r.vz_cm)*b.r+r.vz_cm))
+	//
+	//	thisFactor := dvThis / math.Abs(vThis)
+	//	vOther := otherBody.Vx + otherBody.Vy + otherBody.Vz
+	//	dvOther :=
+	//		math.Abs(otherBody.Vx-((r.vx2-r.vx_cm)*b.r+r.vx_cm)) +
+	//			math.Abs(otherBody.Vy-((r.vy2-r.vy_cm)*b.r+r.vy_cm)) +
+	//			math.Abs(otherBody.Vz-((r.vz2-r.vz_cm)*b.r+r.vz_cm))
+	//
+	//	otherFactor := dvOther / math.Abs(vOther)
+	//
+	//	if b.CollisionBehavior == globals.Fragment && thisFactor > b.FragFactor ||
+	//		otherBody.CollisionBehavior == globals.Fragment && otherFactor > otherBody.FragFactor {
+	//		return true, thisFactor, otherFactor
+	//	}
 	return false, 0, 0
 }
 
-//
 // Initiates fragmentation of this body and/or the other body
-//
 func (b *Body) doFragment(otherBody *Body, thisFactor, otherFactor float64) {
 	if b.CollisionBehavior == globals.Fragment && thisFactor > b.FragFactor {
 		b.initiateFragmentation(thisFactor)
@@ -60,10 +56,8 @@ func (b *Body) doFragment(otherBody *Body, thisFactor, otherFactor float64) {
 	}
 }
 
-//
 // Initiates fragmentation of a body. The passed fragfactor determines how many fragments will
 // be created. The actual fragmentation will be handled the 'fragment' function below
-//
 func (b *Body) initiateFragmentation(fragFactor float64) {
 	var fragDelta float64
 	if b.FragFactor > 10 {
@@ -84,16 +78,14 @@ func (b *Body) initiateFragmentation(fragFactor float64) {
 	b.fragInfo = fragInfo{b.Radius, newRadius, newMass, int(fragments), curPos}
 }
 
-//
 // Called by the 'Compute' function if a body has been marked as fragmenting. Splits the body into
 // fragments, potentially over multiple compute cycles so the sim pace isn't held up creating a large
 // number of fragments all at once. Once fully fragmented, then sets this body to not exist. As bodies
 // are created, they are enqueued to the passed body collection. The body collection will insert them
 // in a thread-safe manner.
-//
 func (b *Body) fragment(bc *BodyCollection) {
 	cnt := 0
-	for ; b.fragInfo.fragments > 0; {
+	for b.fragInfo.fragments > 0 {
 		b.fragInfo.fragments--
 		v := util.GetVectorEven(b.fragInfo.curPos, b.fragInfo.radius*.9)
 		toAdd := &Body{
