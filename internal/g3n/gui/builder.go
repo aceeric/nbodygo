@@ -6,7 +6,7 @@ package gui
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -15,7 +15,8 @@ import (
 	"nbodygo/internal/g3n/gui/assets/icon"
 	"nbodygo/internal/g3n/math32"
 	"nbodygo/internal/g3n/window"
-	"gopkg.in/yaml.v2"
+
+	"gopkg.in/yaml.v3"
 )
 
 // Builder builds GUI objects from a declarative description in YAML format
@@ -405,7 +406,7 @@ func (b *Builder) ParseFile(filepath string) error {
 	if err != nil {
 		return err
 	}
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return err
 	}

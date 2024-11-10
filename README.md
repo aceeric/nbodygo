@@ -60,42 +60,35 @@ git clone https://github.com/aceeric/nbodygo.git && cd nbodygo
 The following prerequisites are documented on https://grpc.io/docs/quickstart/go/:
 
 Install gRPC as a Go module:
-
 ```bash
 $ export GO111MODULE=on
-$ go get google.golang.org/grpc@v1.53.0
+$ go get google.golang.org/grpc@v1.68.0
 ```
 
 Install the gRPC protobuf compiler. This is the tool that converts the gRPC interface description language into Go code that is referenced by both the client and the server. The protobuf compiler is referenced by the project Make file. On Ubuntu:
-
 ```bash
 $ sudo apt install protobuf-compiler
 ```
 
-If that succeeds, then you can execute `which protoc` to get the location of the installed binary, and add it to your PATH.
-
-Install the Go `protoc` plugins and update your PATH as documented on the quick start:
-
+If that succeeds, then you can execute `which protoc` to get the location of the installed binary, and add it to your PATH. Install the Go `protoc` plugins and update your PATH as documented on the quick start:
 ```bash
-go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
 export PATH="$PATH:$(go env GOPATH)/bin"
 ```
 
 You have to install some requirements for G3N, as documented on their GitHub repo: https://github.com/g3n/engine:
-
 ```bash
 $ sudo apt install xorg-dev libgl1-mesa-dev libopenal1 libopenal-dev libvorbis0a libvorbis-dev libvorbisfile3
 ```
 
 Now, you should be able to build the application (assumes you're in the `nbodygo` directory that you git cloned):
-
 ```bash
 $ make
 ```
 
 This should create the client and the server executables in `bin/client` and `bin/server`, respectively:
-
 ```bash
 $ ls -l bin
 total 33116
