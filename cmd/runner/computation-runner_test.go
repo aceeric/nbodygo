@@ -10,7 +10,7 @@ import (
 func TestRunnerSetters(t *testing.T) {
 	rqh := NewResultQueueHolder(1)
 	bc := body.NewSimBodyCollection([]*body.Body{})
-	cr := NewComputationRunner(1, 1, rqh, bc)
+	cr := NewComputationRunner(1, 1, true, rqh, bc)
 	go func() {
 		for {
 			rqh.Next()

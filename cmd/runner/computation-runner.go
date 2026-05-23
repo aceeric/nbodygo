@@ -2,12 +2,13 @@ package runner
 
 import (
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
 	"log"
 	"nbodygo/cmd/body"
 	"nbodygo/cmd/instrumentation"
 	"runtime"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 //
@@ -15,15 +16,11 @@ import (
 // runner contains a reference to the worker pool and a reference to the sim body collection.
 //
 
-//
 // Prometheus instrumentation - execute the 'With' function only once for efficiency
-//
 var metricRunnerCount = instrumentation.ComputationCount.With(prometheus.Labels{"thread": "runner"})
 var metricBodyCount = instrumentation.BodyCount.With(prometheus.Labels{"thread": "runner"})
 
-//
 // Computation runner state
-//
 type ComputationRunner struct {
 	// stops the  runner
 	stop chan bool
@@ -41,6 +38,8 @@ type ComputationRunner struct {
 	bc *body.BodyCollection
 	// supports test - stop after this many iterations
 	maxIteration int
+	// if true use the Barnes-Hut algorithm
+	barnesHut bool
 	// true if running
 	running bool
 	// applied to the force and velocity by the body force computer as a smoothing factor
@@ -58,9 +57,7 @@ type ComputationRunner struct {
 	delChan chan int
 }
 
-//
 // Prints metrics to the console
-//
 func (r *ComputationRunner) PrintStats() {
 	totalMillis := r.stopTime.Sub(r.startTime).Milliseconds()
 	fps := float32(r.computations) / float32(totalMillis) * 1000
@@ -73,22 +70,22 @@ func (r *ComputationRunner) PrintStats() {
 	r.wp.PrintStats()
 }
 
-//
 // Creates a new computation runner
 //
 // args:
-//   workerCnt         Number of workers in the pool
-//   timeScaling       Multiplier for force and velocity calc - determines sim "speed"
-//   resultQueueHolder Holds results of each compute cycle for the renderer
-//   bc                Collection of bodies in the simulation
 //
-func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder *ResultQueueHolder,
+//	workerCnt         Number of workers in the pool
+//	timeScaling       Multiplier for force and velocity calc - determines sim "speed"
+//	resultQueueHolder Holds results of each compute cycle for the renderer
+//	bc                Collection of bodies in the simulation
+func NewComputationRunner(workerCnt int, timeScaling float64, barnesHut bool, resultQueueHolder *ResultQueueHolder,
 	bc *body.BodyCollection) *ComputationRunner {
 	r := ComputationRunner{
 		stop:              make(chan bool),
 		workerCnt:         workerCnt,
 		wp:                NewWorkPool(workerCnt, bc),
 		bc:                bc,
+		barnesHut:         barnesHut,
 		timeScaling:       timeScaling,
 		timeScaleChan:     make(chan float64, 1),
 		resultQueueHolder: resultQueueHolder,
@@ -100,26 +97,20 @@ func NewComputationRunner(workerCnt int, timeScaling float64, resultQueueHolder 
 	return &r
 }
 
-//
 // Supports debugging - sets the max iterations for the runner. After this many iterations the
 // runner will shut itself down
-//
 func (r *ComputationRunner) SetMaxIterations(maxIteration int) *ComputationRunner {
 	r.maxIteration = maxIteration
 	return r
 }
 
-//
 // Starts the runner
-//
 func (r *ComputationRunner) Start() *ComputationRunner {
 	go r.run()
 	return r
 }
 
-//
 // Stops the runner
-//
 func (r *ComputationRunner) Stop() {
 	if r.running {
 		r.stop <- true
@@ -128,34 +119,26 @@ func (r *ComputationRunner) Stop() {
 	r.wp.ShutDownWorkPool()
 }
 
-//
 // Calls into the work pool contained in the struct to change the pool size. This is enqueued
 // and handled by the pool the next time work is submitted to the pool
-//
 func (r *ComputationRunner) SetWorkers(workerCnt int) {
 	r.workerCnt = workerCnt
 	r.wp.SetPoolSize(workerCnt)
 	instrumentation.ComputationWorkers.Set(float64(workerCnt))
 }
 
-//
 // Returns the time scaling factor in the runner
-//
 func (r *ComputationRunner) TimeScaling() float64 {
 	return r.timeScaling
 }
 
-//
 // Sets the time scaling factor in the runner to the passed value
-//
 func (r *ComputationRunner) SetTimeScaling(timeScaling float64) {
 	r.timeScaleChan <- timeScaling
 }
 
-//
 // If a change the the time scale has been enqueued in the channel, use
 // it to update the time scale
-//
 func (r *ComputationRunner) updateTimeScaling() {
 	select {
 	case r.timeScaling = <-r.timeScaleChan:
@@ -164,24 +147,18 @@ func (r *ComputationRunner) updateTimeScaling() {
 	}
 }
 
-//
 // Returns the coefficient of restitution
-//
 func (r *ComputationRunner) CoefficientOfRestitution() float64 {
 	return r.R
 }
 
-//
 // Sets the coefficient of restitution in the runner to the passed value
-//
 func (r *ComputationRunner) SetCoefficientOfRestitution(R float64) {
 	r.RChan <- R
 }
 
-//
 // If a change the the coefficient of restitution has been enqueued in the channel, use
 // it to update the coefficient of restitution
-//
 func (r *ComputationRunner) updateCoefficientOfRestitution() {
 	select {
 	case r.R = <-r.RChan:
@@ -190,16 +167,12 @@ func (r *ComputationRunner) updateCoefficientOfRestitution() {
 	}
 }
 
-//
 // Sends a message to delete the passed number of bodies from the sim
-//
 func (r *ComputationRunner) RemoveBodies(deletes int) {
 	r.delChan <- deletes
 }
 
-//
 // Handles a request to remove bodies from the sim
-//
 func (r *ComputationRunner) processDeletes() {
 	select {
 	case r.deletes = <-r.delChan:
@@ -242,17 +215,13 @@ func (r *ComputationRunner) processDeletes() {
 	}
 }
 
-//
 // Returns the count of workers in the worker pool
-//
 func (r *ComputationRunner) WorkerCount() int {
 	return r.workerCnt
 }
 
-//
 // Main runner. A go routine that runs until stopped. In a loop: runs one computation, and monitors
 // the stop channel
-//
 func (r *ComputationRunner) run() {
 	r.startTime = time.Now()
 	for r.running = true; r.running; {
@@ -275,11 +244,11 @@ func (r *ComputationRunner) run() {
 	r.stop <- true
 }
 
-//
 // Runs one computation. Executes a nested loop:
-//   for each body
-//     for each other-body
-//       compute the force on body from other-body and detect collisions
+//
+//	for each body
+//	  for each other-body
+//	    compute the force on body from other-body and detect collisions
 //
 // Each body from the outer loop is submitted into the worker pool, and has access to the whole body
 // collection . Therefore, each body is free to update its own force without thread synchronization on the
@@ -295,7 +264,6 @@ func (r *ComputationRunner) run() {
 //
 // In order to synchronize access to the body collection this function also kind of serves as the traffic
 // cop for adds/deletes/mods while the sim is running
-//
 func (r *ComputationRunner) runOneComputation() {
 	r.iterations++
 	r.updateTimeScaling()
@@ -323,6 +291,9 @@ func (r *ComputationRunner) runOneComputation() {
 		// for small simulations just use one worker
 		size = len(arr)
 	}
+	if r.barnesHut {
+		r.bc.BuildTree()
+	}
 	for offset := 0; offset < max; offset += size {
 		end := offset + size
 		if offset+size > max {
@@ -332,17 +303,6 @@ func (r *ComputationRunner) runOneComputation() {
 		r.submits++
 		submits++
 	}
-	/*
-		// initial approach submits to the work pool one body at a time, which
-		// is how the Java app does it
-		r.bc.IterateOnce(func(b *body.Body) {
-			if b.Exists {
-				r.wp.submit(b)
-				r.submits++
-				submits++
-			}
-		})
-	*/
 	if submits != 0 {
 		r.submitMillis += time.Now().Sub(start).Milliseconds()
 		start = time.Now()
@@ -352,6 +312,7 @@ func (r *ComputationRunner) runOneComputation() {
 	} else {
 		time.Sleep(time.Millisecond * 5) // no bodies
 	}
+	r.bc.ClearTree()
 	r.bc.ProcessMods()
 	r.bc.IterateOnce(func(b *body.Body) {
 		ri := b.Update(r.timeScaling, r.R)

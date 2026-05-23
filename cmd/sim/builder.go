@@ -20,6 +20,7 @@ type nBodySimBuilder struct {
 	vSync      bool
 	frameRate  int
 	runMillis  int
+	barnesHut  bool
 }
 
 func NewNBodySimBuilder() *nBodySimBuilder {
@@ -35,6 +36,7 @@ func NewNBodySimBuilder() *nBodySimBuilder {
 		vSync:      true, // not currently used
 		frameRate:  -1,   // not currently used
 		runMillis:  -1,
+		barnesHut:  true,
 	}
 	return &b
 }
@@ -89,6 +91,11 @@ func (sb *nBodySimBuilder) RunMillis(runMillis int) *nBodySimBuilder {
 	return sb
 }
 
+func (sb *nBodySimBuilder) BarnseHut(barnesHut bool) *nBodySimBuilder {
+	sb.barnesHut = barnesHut
+	return sb
+}
+
 func (sb *nBodySimBuilder) Build() *nBodySim {
 	return &nBodySim{
 		bodies:     sb.bodies,
@@ -99,5 +106,6 @@ func (sb *nBodySimBuilder) Build() *nBodySim {
 		render:     sb.render,
 		resolution: sb.resolution,
 		runMillis:  sb.runMillis,
+		barnesHut:  sb.barnesHut,
 	}
 }

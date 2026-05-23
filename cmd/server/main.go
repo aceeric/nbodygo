@@ -25,10 +25,8 @@ const (
 	emptySimName = "Empty"
 )
 
-//
 // state for the main function - initialized with defaults that can be overridden from the
 // command line
-//
 var vars = struct {
 	resolution               [2]int
 	render                   bool
@@ -44,6 +42,7 @@ var vars = struct {
 	vSync                    bool
 	frameRate                int
 	runMillis                int
+	barnesHut                bool
 }{
 	resolution:               [2]int{2560, 1405},
 	render:                   true,
@@ -59,11 +58,10 @@ var vars = struct {
 	vSync:                    false, // not currently supported
 	frameRate:                0,     // "
 	runMillis:                -1,    // run forever in --no-render mode
+	barnesHut:                true,
 }
 
-//
 // Parses the command line, creates a sim based on command line args, and launches the sim
-//
 func main() {
 	if !parseArgs() {
 		return
@@ -98,11 +96,11 @@ func main() {
 		VSync(vars.vSync).
 		FrameRate(vars.frameRate).
 		RunMillis(vars.runMillis).
+		BarnseHut(vars.barnesHut).
 		Build().
 		Run()
 }
 
-//
 // A very rudimentary command-line option parser. Accepts short-form opts like -t and long-form like --threads.
 // Accepts this form: -t 1 and --threads 1, as well as this form -t=1 and --threads=1. Does not accept
 // concatenated short form opts in cases where such opts don't accept params. E.g. doesn't handle: -ot=1 where
@@ -112,7 +110,6 @@ func main() {
 // Sets values in the 'vars' struct corresponding to command line args.
 //
 // returns false if there was an arg parse error, else return true
-//
 func parseArgs() bool {
 	argQueue := list.New()
 	for i := 1; i < len(os.Args); i++ {
@@ -221,6 +218,8 @@ func parseArgs() bool {
 		case "--help":
 			println("Sorry: help not implemented yet...")
 			return false
+		case "--no-barnes-hut":
+			vars.barnesHut = false
 		default:
 			println("ERROR: unknown option: " + *arg)
 			return false

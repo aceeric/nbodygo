@@ -10,12 +10,12 @@ import (
 
 type IterationConsumer func(*Body)
 
-//
 // The collection state
-//
 type BodyCollection struct {
 	// this is the body array that all goroutines will iterate
 	arr []*Body
+	// built each cycle, read during Compute, cleared after
+	Tree *Octree
 	// a list of concurrent adds, as well as collisions accumulated during each compute cycle
 	events *list.List
 	// concurrency
@@ -38,26 +38,22 @@ type BodyCollection struct {
 	modBodyResultCh chan grpcsimcb.ModBodyResult
 }
 
-//
 // Creates a new collection struct, initializing it with the passed array of bodies, which it
 // makes a copy of.
 //
 // returns: the struct
-//
 func NewSimBodyCollection(bodies []*Body) *BodyCollection {
 	c := BodyCollection{
 		arr:    make([]*Body, len(bodies)),
 		events: list.New(),
 		lock:   sync.Mutex{},
 		evCh:   make(chan event, 1000),
-		getBodyCh: make(chan
-		struct {
+		getBodyCh: make(chan struct {
 			id   int
 			name string
 		}, 10),
 		sendBodyCh: make(chan *Body, 1),
-		modBodyCh: make(chan
-		struct {
+		modBodyCh: make(chan struct {
 			id          int
 			name, class string
 			mods        []string
@@ -75,15 +71,14 @@ func (bc *BodyCollection) GetArray() []*Body {
 	return bc.arr
 }
 
-//
 // supports post-processing events that would cause race conditions or - would require synchronization - if
 // done concurrently. Synchronization in the tight nested body computation loop has a prohibitive impact
 // on performance.
 //
 // args:
-//   ev  the event to enqueue. If an attempt is made to enqueue an event when the event channel is full,
-//       the event will be discarded and an ERROR will be logged.
 //
+//	ev  the event to enqueue. If an attempt is made to enqueue an event when the event channel is full,
+//	    the event will be discarded and an ERROR will be logged.
 func (bc *BodyCollection) Enqueue(ev event) {
 	select {
 	case bc.evCh <- ev:
@@ -92,11 +87,9 @@ func (bc *BodyCollection) Enqueue(ev event) {
 	}
 }
 
-//
 // Go routine that supports concurrent (deferred) adds and modifications to body state. Receives events
 // from the 'Enqueue' function through the 'evCh' channel. Adds events to an internal list, which is handled
 // by a call to the 'ProcessMods' function. (See computation runner.)
-//
 func (bc *BodyCollection) handleEvents() {
 	for {
 		select {
@@ -110,13 +103,11 @@ func (bc *BodyCollection) handleEvents() {
 	}
 }
 
-//
 // Because the computation cycle is always running, this function provides a way for callers
 // to register a request to get a body. The function writes to a channel which is checked by the
 // 'HandleGetBody' function which is called by the collection's 'Cycle' method. That method finds
 // the body, clones it, and writes it to the channel that is checked by this function. This gives
 // the caller a copy of the body created in a thread-safe way.
-//
 func (bc *BodyCollection) GetBody(id int, name string) *Body {
 	bc.getBodyCh <- struct {
 		id   int
@@ -125,10 +116,8 @@ func (bc *BodyCollection) GetBody(id int, name string) *Body {
 	return <-bc.sendBodyCh
 }
 
-//
 // If there is a 'get body' message on the 'getBodyCh' channel, then searches the body array for the
 // body and if found, calls doSendBody to send the body on the 'sendBodyCh' channel
-//
 func (bc *BodyCollection) HandleGetBody() {
 	select {
 	default:
@@ -145,10 +134,8 @@ func (bc *BodyCollection) HandleGetBody() {
 	}
 }
 
-//
 // Clones the passed body and sends it to the 'sendBodyCh' channel. That channel is monitored
 // by the function returned by the 'GetBody' function
-//
 func (bc *BodyCollection) doSendBody(b *Body) {
 	if len(bc.sendBodyCh) < cap(bc.sendBodyCh) { // if too many requests just discard them
 		if b != nil {
@@ -161,11 +148,9 @@ func (bc *BodyCollection) doSendBody(b *Body) {
 	}
 }
 
-//
 // Enqueues a request to modify the properties of a body - or bodies - in the collection. Uses the same
 // pattern as GetBody / HandleGetBody / doSendBody except since all it has to return is a result code, it
 // doesn't need a doModBody
-//
 func (bc *BodyCollection) ModBody(id int, name, class string, mods []string) grpcsimcb.ModBodyResult {
 	bc.modBodyCh <- struct {
 		id          int
@@ -175,10 +160,8 @@ func (bc *BodyCollection) ModBody(id int, name, class string, mods []string) grp
 	return <-bc.modBodyResultCh
 }
 
-//
 // If there is a 'mod body' message on the 'modBodyCh' channel, then searches the body array for all matching
 // bodies and if found, calls ApplyMods on the body, then sends the result on the 'modBodyResultCh' channel
-//
 func (bc *BodyCollection) HandleModBody() {
 	select {
 	default:
@@ -207,31 +190,25 @@ func (bc *BodyCollection) HandleModBody() {
 	}
 }
 
-//
 // Iterator with a callback pattern. Since there is a lot of iteration, it seemed to make sense to
 // encapsulate the iterator with the consumer as a callback. That way if there ever needs to be something
 // unique about the iteration it can be hidden here and iterators don't need to be concerned with it
-//
 func (bc *BodyCollection) IterateOnce(c IterationConsumer) {
 	for i, size := 0, len(bc.arr); i < size; i++ {
 		c(bc.arr[i])
 	}
 }
 
-//
 // Gets the number of bodies in the collection
-//
 func (bc *BodyCollection) Count() int {
 	bc.lock.Lock()
 	defer bc.lock.Unlock()
 	return len(bc.arr)
 }
 
-//
 // Walks the internal 'events' list and processes all enqueued events. These are events that require
 // changing body state in such a way that would require synchronization to avoid race conditions. Adds
 // are excluded from this processing. (Called by the computation runner.)
-//
 func (bc *BodyCollection) ProcessMods() {
 	bc.lock.Lock()
 	if bc.events.Len() == 0 {
@@ -255,9 +232,7 @@ func (bc *BodyCollection) ProcessMods() {
 	}
 }
 
-//
 // Returns the count of events in the internal 'events' list that are Adds
-//
 func (bc *BodyCollection) countAdds() int {
 	cnt := 0
 	for e := bc.events.Front(); e != nil; e = e.Next() {
@@ -268,14 +243,13 @@ func (bc *BodyCollection) countAdds() int {
 	return cnt
 }
 
-//
 // Called by computation runner to prepare the body collection for another compute cycle. Removes refs
 // to bodies that have been set not to exist, and adds bodies that have been enqueued for addition by the
 // gRPC interface
 //
 // args:
-//   R  coefficient of restitution for elastic collision gets plugged into each added body
 //
+//	R  coefficient of restitution for elastic collision gets plugged into each added body
 func (bc *BodyCollection) Cycle(R float64) {
 	cnt := 0
 	for i, size := 0, len(bc.arr); i < size; i++ {
@@ -319,4 +293,13 @@ func (bc *BodyCollection) Cycle(R float64) {
 		bc.events.Init()
 	}
 	bc.cycle++
+}
+
+func (bc *BodyCollection) BuildTree() {
+	bc.Tree = NewOctree()
+}
+
+// allows GC to reclaim the tree between cycles
+func (bc *BodyCollection) ClearTree() {
+	bc.Tree = nil
 }
