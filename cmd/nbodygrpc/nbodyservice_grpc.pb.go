@@ -8,10 +8,11 @@ package nbodygrpc
 
 import (
 	context "context"
-	empty "github.com/golang/protobuf/ptypes/empty"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -60,7 +61,7 @@ type NBodyServiceClient interface {
 	// Gets body properties (use ModBodyMessage and ignore what is not needed)
 	GetBody(ctx context.Context, in *ModBodyMessage, opts ...grpc.CallOption) (*BodyDescription, error)
 	// Gets the current values of sim configurables
-	GetCurrentConfig(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*CurrentConfig, error)
+	GetCurrentConfig(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CurrentConfig, error)
 }
 
 type nBodyServiceClient struct {
@@ -151,7 +152,7 @@ func (c *nBodyServiceClient) GetBody(ctx context.Context, in *ModBodyMessage, op
 	return out, nil
 }
 
-func (c *nBodyServiceClient) GetCurrentConfig(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*CurrentConfig, error) {
+func (c *nBodyServiceClient) GetCurrentConfig(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CurrentConfig, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CurrentConfig)
 	err := c.cc.Invoke(ctx, NBodyService_GetCurrentConfig_FullMethodName, in, out, cOpts...)
@@ -190,7 +191,7 @@ type NBodyServiceServer interface {
 	// Gets body properties (use ModBodyMessage and ignore what is not needed)
 	GetBody(context.Context, *ModBodyMessage) (*BodyDescription, error)
 	// Gets the current values of sim configurables
-	GetCurrentConfig(context.Context, *empty.Empty) (*CurrentConfig, error)
+	GetCurrentConfig(context.Context, *emptypb.Empty) (*CurrentConfig, error)
 	mustEmbedUnimplementedNBodyServiceServer()
 }
 
@@ -225,7 +226,7 @@ func (UnimplementedNBodyServiceServer) ModBody(context.Context, *ModBodyMessage)
 func (UnimplementedNBodyServiceServer) GetBody(context.Context, *ModBodyMessage) (*BodyDescription, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBody not implemented")
 }
-func (UnimplementedNBodyServiceServer) GetCurrentConfig(context.Context, *empty.Empty) (*CurrentConfig, error) {
+func (UnimplementedNBodyServiceServer) GetCurrentConfig(context.Context, *emptypb.Empty) (*CurrentConfig, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCurrentConfig not implemented")
 }
 func (UnimplementedNBodyServiceServer) mustEmbedUnimplementedNBodyServiceServer() {}
@@ -394,7 +395,7 @@ func _NBodyService_GetBody_Handler(srv interface{}, ctx context.Context, dec fun
 }
 
 func _NBodyService_GetCurrentConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -406,7 +407,7 @@ func _NBodyService_GetCurrentConfig_Handler(srv interface{}, ctx context.Context
 		FullMethod: NBodyService_GetCurrentConfig_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NBodyServiceServer).GetCurrentConfig(ctx, req.(*empty.Empty))
+		return srv.(NBodyServiceServer).GetCurrentConfig(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }

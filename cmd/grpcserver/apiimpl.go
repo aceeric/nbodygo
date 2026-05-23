@@ -3,11 +3,12 @@ package grpcserver
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"nbodygo/cmd/body"
 	"nbodygo/cmd/nbodygrpc"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 //
@@ -16,7 +17,7 @@ import (
 // to mediate between the simulation and gRPC
 //
 
-func (s *nbodyServiceServer) GetCurrentConfig(_ context.Context, in *empty.Empty) (*nbodygrpc.CurrentConfig, error) {
+func (s *nbodyServiceServer) GetCurrentConfig(_ context.Context, in *emptypb.Empty) (*nbodygrpc.CurrentConfig, error) {
 	_ = in
 	return &nbodygrpc.CurrentConfig{
 		Bodies:                 int64(s.callbacks.BodyCount()),
@@ -131,4 +132,3 @@ func (s *nbodyServiceServer) GetBody(_ context.Context, in *nbodygrpc.ModBodyMes
 	}
 	return &bd, nil
 }
-

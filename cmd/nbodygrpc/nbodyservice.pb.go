@@ -7,11 +7,12 @@
 package nbodygrpc
 
 import (
-	empty "github.com/golang/protobuf/ptypes/empty"
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
@@ -905,7 +906,7 @@ var file_nbodyservice_proto_goTypes = []any{
 	(*Factor)(nil),                 // 7: Factor
 	(*RestitutionCoefficient)(nil), // 8: RestitutionCoefficient
 	(*ResultCode)(nil),             // 9: ResultCode
-	(*empty.Empty)(nil),            // 10: google.protobuf.Empty
+	(*emptypb.Empty)(nil),          // 10: Empty
 }
 var file_nbodyservice_proto_depIdxs = []int32{
 	0,  // 0: BodyDescription.collision_behavior:type_name -> CollisionBehaviorEnum

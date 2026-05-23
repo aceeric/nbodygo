@@ -23,6 +23,13 @@ server:
 help:
 	echo "$$HELPTEXT"
 
+.PHONY : update-modules
+update-modules:
+	go get -u ./...
+	rm go.sum
+	sed -i '/\/\/ indirect/d' go.mod
+	go mod tidy
+
 ifndef VERBOSE
 .SILENT:
 endif
@@ -42,13 +49,14 @@ just runs the full build each time.
 
 Targets:
 
-all      In order, runs: proto, client, server
-proto    Runs the 'protoc' protobuf compiler (protoc must be in the PATH) to compile the nbody gRPC service
-         protobuf file into Go code. See the cmd/nbodygrpc directory.
-client   Runs go build on the cmd/client directory and creates executable bin/client
-server   Runs go build on the cmd/server directory and creates executable bin/server
-help     Prints this help
-print-%  Prints the value of a Make variable. E.g. 'make print-ROOT' to print the value of 'ROOT'
+all             In order, runs: proto, client, server
+proto           Runs the 'protoc' protobuf compiler (protoc must be in the PATH) to compile
+                the nbody gRPC service protobuf file into Go code. See the cmd/nbodygrpc directory.
+client          Runs go build on the cmd/client directory and creates executable bin/client
+server          Runs go build on the cmd/server directory and creates executable bin/server
+help            Prints this help
+print-%         Prints the value of a Make variable. E.g. 'make print-ROOT' to print the value of 'ROOT'
+update-modules  Runs 'go get -u' and 'go mod tidy'
 
 The Make file runs silent unless you provide a VERBOSE arg or variable. E.g.: make VERBOSE=1
 

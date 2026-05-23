@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/grpc"
 	"log"
 	"math/rand"
 	"nbodygo/cmd/globals"
@@ -13,11 +11,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-//
 // gRPC client state
-//
 type client struct {
 	conn     *grpc.ClientConn
 	nbodyCli nbodygrpc.NBodyServiceClient
@@ -26,9 +25,7 @@ type client struct {
 // local server (hard-coded in the server too)
 const nbodyServer string = "localhost:50051"
 
-//
 // Creates a new gRPC client connection to the gRPC server
-//
 func newClient() *client {
 	var opts = []grpc.DialOption{grpc.WithBlock(), grpc.WithInsecure()}
 	conn, err := grpc.Dial(nbodyServer, opts...)
@@ -42,18 +39,14 @@ func newClient() *client {
 	return &c
 }
 
-//
 // Stops the client
-//
 func (c *client) stopClient() {
 	if c.conn != nil {
 		_ = c.conn.Close()
 	}
 }
 
-//
 // Sets the number of computation threads on the server
-//
 func (c *client) setComputationThreads(threadsArg string) {
 	threads, err := strconv.ParseInt(threadsArg, 0, 64)
 	if err != nil {
@@ -63,9 +56,7 @@ func (c *client) setComputationThreads(threadsArg string) {
 	println(result.Message)
 }
 
-//
 // Sets the result queue size on the server to the passed value
-//
 func (c *client) setResultQueueSize(sizeArg string) {
 	val, err := strconv.ParseInt(sizeArg, 0, 64)
 	if err != nil {
@@ -75,9 +66,7 @@ func (c *client) setResultQueueSize(sizeArg string) {
 	println(result.Message)
 }
 
-//
 // Sets the smoothing factor on the server to the passed value
-//
 func (c *client) setSmoothing(smoothingArg string) {
 	factor, err := strconv.ParseFloat(smoothingArg, 64)
 	if err != nil {
@@ -87,9 +76,7 @@ func (c *client) setSmoothing(smoothingArg string) {
 	println(result.Message)
 }
 
-//
 // Sets the coefficient of restitution on the server to the passed value
-//
 func (c *client) setRestitutionCoefficient(coeffArg string) {
 	coeff, err := strconv.ParseFloat(coeffArg, 64)
 	if err != nil {
@@ -100,9 +87,7 @@ func (c *client) setRestitutionCoefficient(coeffArg string) {
 	println(result.Message)
 }
 
-//
 // Removes the passed number of bodies from the sim on the server. If -1, removes all, including pinned bodies
-//
 func (c *client) removeBodies(countArg string) {
 	count, err := strconv.ParseInt(countArg, 0, 64)
 	if err != nil {
@@ -112,11 +97,9 @@ func (c *client) removeBodies(countArg string) {
 	println(result.Message)
 }
 
-//
 // Gets sim configuration settings from the server and displays them to the console
-//
 func (c *client) getCurrentConfig() {
-	config, err := c.nbodyCli.GetCurrentConfig(context.Background(), &empty.Empty{})
+	config, err := c.nbodyCli.GetCurrentConfig(context.Background(), &emptypb.Empty{})
 	if err != nil {
 		log.Fatalf("get-config error: %v\n", err)
 	}
@@ -130,13 +113,12 @@ func (c *client) getCurrentConfig() {
 		config.RestitutionCoefficient)
 }
 
-//
 // Gets a body from the sim on the server and displays its properties to the console
 //
 // args:
-//   whichArg  Specifies which body to get. Either 'id=' or 'name='. E.g.: get-body id=123. Or:
-//             get-body name=jupiter
 //
+//	whichArg  Specifies which body to get. Either 'id=' or 'name='. E.g.: get-body id=123. Or:
+//	          get-body name=jupiter
 func (c *client) getBody(whichArg string) {
 	which := strings.Split(whichArg, "=")
 	var id int
@@ -197,14 +179,13 @@ func (c *client) getBody(whichArg string) {
 		b.Class)
 }
 
-//
 // Adds one or more bodies to the sim on the server depending on the passed command
 //
 // args:
-//   cmd  Either 'add-body' or 'add-bodies'
-//   args Everything on the command line after 'cmd' E.g.:
-//        400 400 -400 -850000000 923000000 -350000000 9E5 5 color=red qty=600 delay=.3
 //
+//	cmd  Either 'add-body' or 'add-bodies'
+//	args Everything on the command line after 'cmd' E.g.:
+//	     400 400 -400 -850000000 923000000 -350000000 9E5 5 color=red qty=600 delay=.3
 func (c *client) addBodies(cmd string, args []string) {
 	const firstNonPositional = 8
 	p := [8]float64{}
@@ -271,9 +252,7 @@ func (c *client) addBodies(cmd string, args []string) {
 	}
 }
 
-//
 // Adds one body to the simulation on the server with the passed params
-//
 func (c *client) addOneBody(x, y, z, vx, vy, vz, mass, radius float64,
 	isSun bool, intensity float64,
 	collisionBehavior globals.CollisionBehavior, color globals.BodyColor,
@@ -311,10 +290,8 @@ func (c *client) addOneBody(x, y, z, vx, vy, vz, mass, radius float64,
 	println(result.Message)
 }
 
-//
 // Adds multiple bodies to the simulation on the server with the passed params. The delay, and ...random
 // args randomize how the bodies are added
-//
 func (c *client) addMultiBodies(x, y, z, vx, vy, vz, mass, radius float64,
 	isSun bool, intensity float64,
 	collisionBehavior globals.CollisionBehavior, color globals.BodyColor,
@@ -340,13 +317,12 @@ func (c *client) addMultiBodies(x, y, z, vx, vy, vz, mass, radius float64,
 	}
 }
 
-//
 // Modifies one or more bodies in the sim on the server using the passed params
 //
 // args:
-//   whichArg  Specifies which body or bodies to modify. Either 'id=', 'class=', or 'name='. E.g.: mod-body id=123.
-//             Or: mod-body name=jupiter or mod-body class=asteroid
 //
+//	whichArg  Specifies which body or bodies to modify. Either 'id=', 'class=', or 'name='. E.g.: mod-body id=123.
+//	          Or: mod-body name=jupiter or mod-body class=asteroid
 func (c *client) modBodies(whichArg string, args []string) {
 	which := strings.Split(whichArg, "=")
 	id := -1
@@ -391,9 +367,7 @@ func (c *client) modBodies(whichArg string, args []string) {
 	println(result.Message)
 }
 
-//
 // gRPC client entry point
-//
 func main() {
 	if len(os.Args) == 1 {
 		basicHelp()
@@ -438,14 +412,13 @@ func main() {
 	}
 }
 
-//
 // Do some basic cmdline arg validation
 //
 // args:
-//   cmd    the command, e.g. 'set-threads'
-//   argCnt the count of args from cmd forward, e.g. if 'cmd' is 'set-threads' and the cmd line
-//          is ["set-threads", "1"] then argCnt = 2
 //
+//	cmd    the command, e.g. 'set-threads'
+//	argCnt the count of args from cmd forward, e.g. if 'cmd' is 'set-threads' and the cmd line
+//	       is ["set-threads", "1"] then argCnt = 2
 func validateArgs(cmd string, argCount int) {
 	switch cmd {
 	case "set-threads":
@@ -477,9 +450,7 @@ func validateArgs(cmd string, argCount int) {
 	}
 }
 
-//
 // Prints some basic help
-//
 func basicHelp() {
 	help := "N-Body Golang:\n\nSupported commands:\n\n" + "" +
 		" set-threads <threads>\n" +
@@ -497,9 +468,7 @@ func basicHelp() {
 	println(help)
 }
 
-//
 // Parses and returns the passed string as an int, or panics
-//
 func parseIntOrPanic(s string) int {
 	i, err := strconv.Atoi(s)
 	if err != nil {
@@ -508,9 +477,7 @@ func parseIntOrPanic(s string) int {
 	return i
 }
 
-//
 // Parses and returns the passed string as a float, or panics
-//
 func parseFloatOrPanic(s string) float64 {
 	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
@@ -519,14 +486,13 @@ func parseFloatOrPanic(s string) float64 {
 	return f
 }
 
-//
 // if arg 'random' is non-zero then it is randomized added to 'val' before returning
 // 'val'. If 'random' is zero, then 'val' is returned un-modified. Used to randomize
 // body properties when adding. E.g.
-//    add-bodies x=100 ... posrand=10
+//
+//	add-bodies x=100 ... posrand=10
 //
 // The result of this would be to randomize x (and y and z) between 100 and 110
-//
 func randomize(val float64, random float64) float64 {
 	if random == 0 {
 		return val
